@@ -1,0 +1,5 @@
+stop_id,stop_name,stop_lat,stop_lon,parent_station,platform_code,location_type,wheelchair_boarding,stop_timezone
+HUB,Synthetic Central,40.0000,-75.0000,,,1,1,America/New_York
+NORTH,North Platform,40.0100,-75.0000,HUB,1,0,1,America/New_York
+SOUTH,South Platform,39.9900,-75.0000,HUB,2,0,1,America/New_York
+FAR,Outside Filter,42.0000,-77.0000,,,0,0,America/New_York

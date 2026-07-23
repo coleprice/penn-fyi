@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-23T00:00:00Z",
+  "feeds": [
+    {
+      "id": "amtrak-amtraker",
+      "agency_name": "Amtrak via Amtraker",
+      "region": "United States",
+      "modes": ["intercity_rail"],
+      "priority": 1,
+      "status": "operational",
+      "adapter": "amtraker",
+      "source_page": "https://beta.amtraker.com/about",
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Community adapter and data terms are isolated from the GTFS pipeline; do not archive or republish payloads until reviewed."
+      },
+      "notes": "Nationwide first priority. This is intentionally not processed by static GTFS ETL."
+    },
+    {
+      "id": "njt-rail",
+      "agency_name": "NJ Transit Rail",
+      "region": "New Jersey / New York",
+      "modes": ["commuter_rail", "light_rail"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://developer.njtransit.com/registration/",
+      "license": {
+        "status": "review_required",
+        "url": "https://developer.njtransit.com/terms/",
+        "redistributable": false,
+        "notes": "Registration and credentialed download are required; configure only after accepting current NJT terms."
+      }
+    },
+    {
+      "id": "njt-bus",
+      "agency_name": "NJ Transit Bus",
+      "region": "New Jersey / New York",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://developer.njtransit.com/registration/",
+      "license": {
+        "status": "review_required",
+        "url": "https://developer.njtransit.com/terms/",
+        "redistributable": false
+      },
+      "notes": "Includes NJT-operated service using Port Authority Bus Terminal. PABT is a hub, not an operator."
+    },
+    {
+      "id": "mta-subway",
+      "agency_name": "MTA New York City Subway",
+      "region": "New York City",
+      "modes": ["subway"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mta.info/developers",
+      "download_url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip",
+      "realtime": {
+        "trip_updates": [
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"
+        ],
+        "vehicle_positions": [
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"
+        ],
+        "alerts": [
+          "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts"
+        ],
+        "auth": "none"
+      },
+      "filter": {
+        "service_window_days": 90
+      },
+      "license": {
+        "status": "review_required",
+        "url": "https://api.mta.info/#/DataFeedAgreement",
+        "redistributable": false,
+        "notes": "The static and realtime endpoints are open without an API key. Public redistribution remains default-deny until the current data-feed agreement is reviewed."
+      },
+      "notes": "All eight route-group GTFS-Realtime feeds plus the subway alerts feed are registered; Worker-side realtime parsing remains a production gap."
+    },
+    {
+      "id": "mta-bus",
+      "agency_name": "MTA New York City Transit and MTA Bus",
+      "region": "New York City",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mta.info/developers",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "mta-lirr",
+      "agency_name": "MTA Long Island Rail Road",
+      "region": "New York",
+      "modes": ["commuter_rail"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mta.info/developers",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "mta-metro-north",
+      "agency_name": "MTA Metro-North Railroad",
+      "region": "New York / Connecticut",
+      "modes": ["commuter_rail"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mta.info/developers",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "path",
+      "agency_name": "Port Authority Trans-Hudson",
+      "region": "New York / New Jersey",
+      "modes": ["rapid_transit"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.panynj.gov/path/en/schedules-maps.html",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "PATH is an operator; unlike PATH, Port Authority Bus Terminal is only a hub."
+    },
+    {
+      "id": "septa",
+      "agency_name": "SEPTA",
+      "region": "Southeastern Pennsylvania",
+      "modes": ["commuter_rail", "subway", "light_rail", "bus"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://www3.septa.org/developer/",
+      "download_url": "https://www3.septa.org/developer/gtfs_public.zip",
+      "filter": {
+        "service_window_days": 90
+      },
+      "license": {
+        "status": "verified",
+        "name": "SEPTA Trip Planning Data License Agreement",
+        "url": "https://www3.septa.org/developer/",
+        "redistributable": true,
+        "notes": "Agreement expressly permits reproduction and redistribution subject to its terms."
+      }
+    },
+    {
+      "id": "pocono-pony",
+      "agency_name": "Monroe County Transit Authority (Pocono Pony)",
+      "region": "Monroe County, Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.gomcta.com/developerapi.php",
+      "download_url": "https://ponytracker.availtec.com/InfoPoint/gtfs-zip.ashx",
+      "filter": {
+        "bbox": {
+          "west": -75.68,
+          "south": 40.93,
+          "east": -75.12,
+          "north": 41.2
+        },
+        "service_window_days": 90
+      },
+      "license": {
+        "status": "verified",
+        "name": "MCTA Developer API terms",
+        "url": "https://www.gomcta.com/developerapi.php",
+        "redistributable": true
+      },
+      "notes": "Initial Pocono focus: Blakeslee–Pocono Summit along PA-940, then I-380/PA-611 through Mount Pocono toward Tannersville. The bbox is deliberately wider than that corridor."
+    },
+    {
+      "id": "rabbittransit",
+      "agency_name": "rabbittransit",
+      "region": "South Central Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.rabbittransit.org/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "Catalog York, Adams, Columbia, Cumberland, Franklin, Montour, Northumberland, Perry, Snyder, and Union County service."
+    },
+    {
+      "id": "rabbittransit-capital-region",
+      "agency_name": "rabbittransit Capital Region",
+      "region": "Harrisburg, Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.rabbittransit.org/services/capital-region-fixed-route/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "Formerly Capital Area Transit (CAT); now presented under rabbittransit's Capital Region service."
+    },
+    {
+      "id": "red-rose-transit",
+      "agency_name": "Red Rose Transit Authority",
+      "region": "Lancaster, Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.redrosetransit.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "lebanon-transit",
+      "agency_name": "Lebanon Transit",
+      "region": "Lebanon, Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://lebanontransit.org/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "lcta",
+      "agency_name": "Luzerne County Transportation Authority",
+      "region": "Northeastern Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.lctabus.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "martz-pocono-nyc",
+      "agency_name": "Martz Bus",
+      "region": "Pocono Mountains / New York City",
+      "modes": ["intercity_bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://martzbus.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "Priority carrier discovery for Pocono-to-Port Authority Bus Terminal trips. PABT remains modeled as a hub, not an operator."
+    },
+    {
+      "id": "colts",
+      "agency_name": "County of Lackawanna Transit System",
+      "region": "Northeastern Pennsylvania",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.coltsbus.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "bay-area-511-regional",
+      "agency_name": "511 SF Bay Regional Transit",
+      "region": "San Francisco Bay Area",
+      "modes": ["regional_rail", "rapid_transit", "light_rail", "bus", "ferry"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://511.org/open-data/transit",
+      "download_url": "https://api.511.org/transit/datafeeds?operator_id=RG&api_key=${TRANSIT_511_API_KEY}",
+      "secret_name": "TRANSIT_511_API_KEY",
+      "filter": {
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Regional feed requires an Open 511 API key; keep the archive private until current terms are reviewed."
+      }
+    },
+    {
+      "id": "mbta",
+      "agency_name": "Massachusetts Bay Transportation Authority",
+      "region": "Greater Boston, Massachusetts",
+      "modes": ["commuter_rail", "subway", "light_rail", "bus", "ferry"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mbta.com/developers/gtfs",
+      "download_url": "https://cdn.mbta.com/MBTA_GTFS.zip",
+      "filter": {
+        "service_window_days": 90
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "massdot-regional-transit",
+      "agency_name": "Massachusetts Regional Transit Authorities",
+      "region": "Massachusetts",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mass.gov/info-details/public-transportation-in-massachusetts",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "Catalog regional authorities separately rather than assuming the MBTA feed covers the Commonwealth."
+    },
+    {
+      "id": "ctrail",
+      "agency_name": "CTrail",
+      "region": "Connecticut",
+      "modes": ["commuter_rail"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.hartfordline.com/faqs/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      },
+      "notes": "Catalog Hartford Line and Shore Line East; Metro-North is represented separately."
+    },
+    {
+      "id": "cttransit",
+      "agency_name": "CTtransit",
+      "region": "Connecticut",
+      "modes": ["bus", "bus_rapid_transit"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.cttransit.com/about/developers",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "wmata",
+      "agency_name": "Washington Metropolitan Area Transit Authority",
+      "region": "Washington, DC / Maryland / Virginia",
+      "modes": ["rapid_transit", "bus"],
+      "priority": 2,
+      "status": "planned",
+      "adapter": "gtfs-static",
+      "source_page": "https://developer.wmata.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "mta-maryland-local-bus",
+      "agency_name": "Maryland Transit Administration",
+      "region": "Maryland / Baltimore",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.mta.maryland.gov/developer-resources",
+      "download_url": "https://feeds.mta.maryland.gov/gtfs/local-bus",
+      "filter": {
+        "service_window_days": 90
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "vre",
+      "agency_name": "Virginia Railway Express",
+      "region": "Northern Virginia / Washington, DC",
+      "modes": ["commuter_rail"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.vre.org/service/developer-resources/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "fairfax-connector",
+      "agency_name": "Fairfax Connector",
+      "region": "Northern Virginia",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.fairfaxcounty.gov/connector/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "art-arlington",
+      "agency_name": "Arlington Transit",
+      "region": "Northern Virginia",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.arlingtontransit.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    },
+    {
+      "id": "dash-alexandria",
+      "agency_name": "DASH Alexandria Transit",
+      "region": "Northern Virginia",
+      "modes": ["bus"],
+      "priority": 2,
+      "status": "discovery",
+      "adapter": "gtfs-static",
+      "source_page": "https://www.dashbus.com/",
+      "license": {
+        "status": "review_required",
+        "redistributable": false
+      }
+    }
+  ]
+}

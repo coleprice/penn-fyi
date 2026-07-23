@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-23T00:00:00Z",
+  "feeds": [
+    {
+      "id": "synthetic",
+      "agency_name": "Synthetic Transit",
+      "region": "Fixture County",
+      "modes": ["bus"],
+      "priority": 5,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://example.com/source",
+      "download_url": "https://example.com/gtfs.zip",
+      "filter": {
+        "bbox": {
+          "west": -75.1,
+          "south": 39.9,
+          "east": -74.9,
+          "north": 40.1
+        },
+        "service_window_days": 7
+      },
+      "license": {
+        "status": "verified",
+        "name": "Synthetic fixture data",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "redistributable": true
+      }
+    }
+  ]
+}

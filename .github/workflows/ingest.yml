@@ -1,0 +1,150 @@
+name: Ingest static transit feeds
+
+on:
+  workflow_dispatch:
+    inputs:
+      feed_id:
+        description: "Feed ID or comma-separated IDs; use all for every operational GTFS feed"
+        required: false
+        default: "all"
+        type: string
+  repository_dispatch:
+    types: [ingest]
+  schedule:
+    - cron: "17 8 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transit-static-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check whether scheduled ingestion is needed
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_FEED_ID: ${{ inputs.feed_id }}
+          DISPATCH_FEEDS: ${{ toJSON(github.event.client_payload.feeds) }}
+          INGEST_NEEDED_URL: ${{ vars.INGEST_NEEDED_URL }}
+          ADMIN_INGEST_TOKEN: ${{ secrets.ADMIN_INGEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            response="$(curl --fail --silent --show-error \
+              --header "Authorization: Bearer $ADMIN_INGEST_TOKEN" \
+              "$INGEST_NEEDED_URL")"
+            needed="$(jq -r '.needed == true' <<<"$response")"
+            feeds="$(jq -r '(.feeds // []) | map(.feed_id) | join(",")' <<<"$response")"
+            {
+              echo "needed=$needed"
+              echo "feeds=${feeds:-all}"
+            } >>"$GITHUB_OUTPUT"
+            if [[ "$needed" != "true" ]]; then
+              echo "Static feeds are fresh; ending scheduled run before checkout."
+              exit 0
+            fi
+          elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
+            echo "needed=true" >>"$GITHUB_OUTPUT"
+            feeds="$(jq -r 'if type == "array" then join(",") else "all" end' <<<"${DISPATCH_FEEDS:-null}")"
+            echo "feeds=${feeds:-all}" >>"$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >>"$GITHUB_OUTPUT"
+            echo "feeds=${MANUAL_FEED_ID:-all}" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repository
+        if: steps.gate.outputs.needed == 'true'
+        uses: actions/checkout@v4
+
+      - name: Restore conditional request state
+        if: steps.gate.outputs.needed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            etl/state
+            etl/downloads
+          key: gtfs-http-state-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            gtfs-http-state-${{ runner.os }}-
+
+      - name: Set up Node.js
+        if: steps.gate.outputs.needed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and verify
+        if: steps.gate.outputs.needed == 'true'
+        run: |
+          npm ci
+          npm test -- --run test/etl-registry.test.ts test/etl-transform.test.ts
+          npm run typecheck
+
+      - name: Download, filter, and generate D1 SQL
+        id: transform
+        if: steps.gate.outputs.needed == 'true'
+        env:
+          TRANSIT_511_API_KEY: ${{ secrets.TRANSIT_511_API_KEY }}
+        run: |
+          npm run etl -- --feed "${{ steps.gate.outputs.feeds }}"
+          changed="$(jq -r 'any(.not_modified == false)' etl/output/manifest.json)"
+          echo "changed=$changed" >>"$GITHUB_OUTPUT"
+          if [[ "$changed" != "true" ]]; then
+            echo "All recently queried feeds returned HTTP 304; no D1, KV, or R2 writes are needed."
+          fi
+
+      - name: Apply migrations and atomic swaps
+        if: steps.transform.outputs.changed == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply "$D1_DATABASE_NAME" --remote
+          while IFS= read -r sql_path; do
+            npx wrangler d1 execute "$D1_DATABASE_NAME" --remote --file "$sql_path"
+          done < <(jq -r '.[] | select(.not_modified == false) | .sql_path' etl/output/manifest.json)
+
+      - name: Archive provenance and update freshness
+        if: steps.transform.outputs.changed == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          jq -c '.[] | select(.not_modified == false)' etl/output/manifest.json | while IFS= read -r item; do
+            feed_id="$(jq -r '.feed_id' <<<"$item")"
+            archive="$(jq -r '.raw_archive_path' <<<"$item")"
+            version_id="$(jq -r '.version.versionId' <<<"$item")"
+            ingested_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            npx wrangler r2 object put \
+              "$R2_BUCKET_NAME/raw/$feed_id/$version_id.zip" \
+              --remote \
+              --file "$archive"
+            freshness="$(jq -cn \
+              --arg feed_id "$feed_id" \
+              --arg last_ingested "$ingested_at" \
+              --arg etag "$(jq -r '.version.etag // ""' <<<"$item")" \
+              --arg last_modified "$(jq -r '.version.lastModified // ""' <<<"$item")" \
+              '{feed_id: $feed_id, last_ingested: $last_ingested,
+                etag: ($etag | select(length > 0)),
+                last_modified: ($last_modified | select(length > 0)),
+                last_queried: null, status: "ok"}')"
+            npx wrangler kv key put \
+              --remote \
+              --binding TRANSIT_KV \
+              "freshness:$feed_id" \
+              "$freshness"
+          done
+
+      # A caller using GitHub's repository_dispatch REST API needs a fine-grained
+      # token with Contents: write. Actions: write applies to workflow_dispatch.

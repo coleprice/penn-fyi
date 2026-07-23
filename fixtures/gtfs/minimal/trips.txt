@@ -1,0 +1,4 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,wheelchair_accessible,bikes_allowed
+R1,DAILY,T1,Northbound,0,1,1
+R2,DAILY,T2,Far Away,1,0,0
+R1,EXPIRED,T3,Expired Service,1,0,0

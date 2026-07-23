@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "penn-fyi",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/mcp", "/admin/*", "/health"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "penn-fyi",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "./migrations",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "TRANSIT_KV",
+      "id": "00000000000000000000000000000000",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "GTFS_ARCHIVE",
+      "bucket_name": "penn-fyi-gtfs",
+    },
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "GITHUB_REPOSITORY": "<gh-user>/penn-fyi",
+    "FEED_STALE_AFTER_HOURS": "48",
+    "RECENT_QUERY_WINDOW_DAYS": "14",
+    "GTFS_RT_TTL_SECONDS": "25",
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01,
+    },
+  },
+}
