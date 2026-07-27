@@ -11,6 +11,7 @@ export interface BoundingBox {
 
 export interface FeedFilter {
   readonly bbox?: BoundingBox;
+  readonly agency_ids?: readonly string[];
   readonly route_ids?: readonly string[];
   readonly route_short_names?: readonly string[];
   readonly service_window_days?: number;

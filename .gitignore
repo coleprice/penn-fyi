@@ -10,3 +10,5 @@ coverage/
 .DS_Store
 etl/output/
 etl/downloads/
+etl/archive/
+etl/state/

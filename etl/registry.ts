@@ -187,7 +187,11 @@ function validateFeed(value: unknown, index: number): FeedDefinition {
     if (value.filter.bbox !== undefined) {
       validateBbox(value.filter.bbox, `${path}.filter.bbox`);
     }
-    for (const key of ["route_ids", "route_short_names"] as const) {
+    for (const key of [
+      "agency_ids",
+      "route_ids",
+      "route_short_names",
+    ] as const) {
       if (value.filter[key] !== undefined) {
         stringArray(value.filter[key], `${path}.filter.${key}`);
       }

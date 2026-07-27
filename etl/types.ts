@@ -11,6 +11,7 @@ export interface BoundingBox {
 
 export interface FeedFilter {
   bbox?: BoundingBox;
+  agency_ids?: string[];
   route_ids?: string[];
   route_short_names?: string[];
   service_window_days?: number;

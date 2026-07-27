@@ -8,8 +8,9 @@ describe("feed registry", () => {
       JSON.parse(await readFile("feeds.json", "utf8")) as unknown,
     );
 
-    expect(registry.feeds[0]?.id).toBe("amtrak-amtraker");
+    expect(registry.feeds[0]?.id).toBe("amtrak");
     expect(registry.feeds[0]?.priority).toBe(1);
+    expect(registry.feeds[0]?.filter?.agency_ids).toEqual(["51"]);
     expect(registry.feeds.some((feed) => feed.id === "pocono-pony")).toBe(true);
     expect(
       registry.feeds.find((feed) => feed.id === "mta-subway")?.realtime?.auth,
@@ -17,6 +18,9 @@ describe("feed registry", () => {
     expect(
       registry.feeds.some((feed) => feed.id === "bay-area-511-regional"),
     ).toBe(true);
+    expect(
+      registry.feeds.find((feed) => feed.id === "bay-area-511-bart")?.status,
+    ).toBe("operational");
   });
 
   it("rejects duplicate IDs and unverified redistribution", () => {

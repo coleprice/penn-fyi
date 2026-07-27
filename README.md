@@ -5,21 +5,19 @@ Nationwide transit awareness for AI assistants, exposed as a standard
 Cloudflare.
 
 > [!IMPORTANT]
-> This repository is an early session scaffold, not a production transit
-> service. The local MCP transport and the fixture-backed `list_feeds` and
-> `find_stops` paths are the first acceptance target. Live agency ingestion,
-> production Cloudflare resources, domains, credentials, availability,
-> monitoring, and complete tool implementations still have to be provisioned
-> and verified.
+> This repository is an early production implementation. The Cloudflare
+> resources, public domains, static GTFS ingestion, and the `list_feeds` and
+> `find_stops` MCP paths are live. The remaining schedule/realtime tools,
+> monitoring, rate limits, and automated lazy ingestion are not yet complete.
 
 ## Scope and priorities
 
 `penn.fyi` is nationwide. The name does not limit coverage to Pennsylvania.
 Feeds are added incrementally in this order:
 
-1. **Amtrak** — the first priority and the nationwide backbone. The initial
-   adapter uses the community Amtraker API because Amtrak does not publish an
-   official GTFS feed.
+1. **Amtrak** — the first priority and the nationwide backbone. Static
+   schedules use Amtrak's official GTFS archive. The community Amtraker API is
+   retained only as an isolated candidate for realtime data.
 2. **New York City and New Jersey** — MTA services, NJ Transit, and carriers
    serving the Port Authority Bus Terminal. The registry includes the MTA
    subway's open, no-key static feed, all eight route-group GTFS-Realtime
@@ -28,7 +26,8 @@ Feeds are added incrementally in this order:
    South-Central Pennsylvania and Northeast Pennsylvania. The first NEPA
    discovery corridor is Blakeslee–Pocono Summit along PA-940, then south via
    I-380/US-611 through Mount Pocono toward Tannersville.
-4. **San Francisco Bay Area** — regional rail, metro, ferry, and bus feeds.
+4. **San Francisco Bay Area** — official 511 feeds, initially split into BART,
+   Muni, Caltrain, and San Francisco Bay Ferry for bounded ingestion.
 5. **Massachusetts** — MBTA and other useful statewide or regional services.
 6. **Connecticut** — CTrail and Connecticut bus systems.
 7. **DMV** — Northern Virginia, Washington, DC, Maryland, and the broader
@@ -71,7 +70,7 @@ MCP client ──Streamable HTTP──> mcp.penn.fyi/mcp
                                    ├── D1: filtered static GTFS
                                    ├── KV: freshness + 20–30s realtime cache
                                    ├── upstream GTFS-Realtime feeds
-                                   └── Amtrak adapter (isolated, non-GTFS)
+                                   └── realtime adapters (including Amtraker)
 
 GitHub Actions ──download/filter──┬──batches/atomic swap──> D1
        ▲                         └──raw provenance───────> R2
@@ -85,8 +84,8 @@ GitHub Actions ──download/filter──┬──batches/atomic swap──> D1
   GTFS-Realtime results.
 - **R2** holds raw upstream artifacts for provenance. Configure a 30-day
   lifecycle policy in Cloudflare; that policy is not created by this repo.
-- **GitHub Actions** performs static GTFS ingestion. The Worker never downloads
-  and transforms static feeds.
+- **GitHub Actions** performs all static GTFS ingestion, including Amtrak's
+  official feed. The Worker never downloads and transforms static feeds.
 - **GTFS-Realtime** will be fetched on demand and cached for 20–30 seconds.
   There will be no polling loops.
 - **Lazy backfill** will dispatch an `ingest` event when a requested feed is
@@ -100,10 +99,10 @@ Public surfaces are `penn.fyi` for the landing page and directory, and
 `mcp.penn.fyi/mcp` for MCP. `gtfs.penn.fyi` is private by default behind
 Cloudflare Access and is intended only for CI and Worker service-token clients.
 
-The scaffold includes the bindings, static ETL, admin freshness gate, and D1
-query layer. The Amtrak adapter, on-demand GTFS-Realtime path, and
-Worker-to-GitHub lazy dispatch are production-design contracts that are not
-implemented yet.
+The implementation includes the bindings, static ETL, admin freshness gate,
+and D1 query layer. The optional Amtraker realtime adapter, on-demand
+GTFS-Realtime path, and Worker-to-GitHub lazy dispatch are production-design
+contracts that are not implemented yet.
 
 ## Feed lifecycle
 

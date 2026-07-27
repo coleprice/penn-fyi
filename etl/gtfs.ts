@@ -176,7 +176,17 @@ export function filterGtfs(
   now = new Date(),
 ): GtfsTables {
   const filter = feed.filter;
+  let agency = tables.agency;
   let routes = tables.routes;
+  if (filter?.agency_ids?.length) {
+    const wanted = new Set(filter.agency_ids);
+    agency = agency.filter(
+      (row) => row.agency_id !== undefined && wanted.has(row.agency_id),
+    );
+    routes = routes.filter(
+      (route) => route.agency_id !== undefined && wanted.has(route.agency_id),
+    );
+  }
   if (filter?.route_ids?.length) {
     const wanted = new Set(filter.route_ids);
     routes = routes.filter(
@@ -226,7 +236,7 @@ export function filterGtfs(
 
   const serviceIds = new Set(trips.map((trip) => trip.service_id));
   return {
-    agency: tables.agency,
+    agency,
     stops,
     routes,
     trips,

@@ -123,6 +123,10 @@ function parseFilter(value: unknown): FeedFilter | undefined {
     throw new Error('Feed registry field "filter" must be an object');
   }
 
+  const agencyIds =
+    value.agency_ids === undefined
+      ? undefined
+      : stringArray(value.agency_ids, "filter.agency_ids");
   const routeIds =
     value.route_ids === undefined
       ? undefined
@@ -143,6 +147,7 @@ function parseFilter(value: unknown): FeedFilter | undefined {
   }
 
   return {
+    ...(agencyIds === undefined ? {} : { agency_ids: agencyIds }),
     ...(routeIds === undefined ? {} : { route_ids: routeIds }),
     ...(routeShortNames === undefined
       ? {}

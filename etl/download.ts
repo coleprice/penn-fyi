@@ -31,6 +31,31 @@ function responseFileName(url: string): string {
   return name.toLowerCase().endsWith(".zip") ? name : "gtfs.zip";
 }
 
+const ZIP_EOCD_SIGNATURE = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
+const ZIP_EOCD_MIN_LENGTH = 22;
+
+export function normalizeZipArchive(bytes: Buffer): Buffer {
+  if (bytes.length < 4 || bytes.subarray(0, 2).toString("hex") !== "504b") {
+    throw new Error("response is not a ZIP archive");
+  }
+
+  let offset = bytes.lastIndexOf(ZIP_EOCD_SIGNATURE);
+  while (offset >= 0) {
+    if (offset + ZIP_EOCD_MIN_LENGTH <= bytes.length) {
+      const commentLength = bytes.readUInt16LE(offset + 20);
+      const archiveEnd = offset + ZIP_EOCD_MIN_LENGTH + commentLength;
+      if (archiveEnd <= bytes.length) {
+        return archiveEnd === bytes.length
+          ? bytes
+          : bytes.subarray(0, archiveEnd);
+      }
+    }
+    offset = bytes.lastIndexOf(ZIP_EOCD_SIGNATURE, offset - 1);
+  }
+
+  throw new Error("ZIP end-of-central-directory record not found");
+}
+
 export async function downloadFeed(
   feed: FeedDefinition,
   sourceUrl: string,
@@ -80,9 +105,11 @@ export async function downloadFeed(
     );
   }
 
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length < 4 || bytes.subarray(0, 2).toString("hex") !== "504b") {
-    throw new Error(`${feed.id} response is not a ZIP archive`);
+  let bytes: Buffer;
+  try {
+    bytes = normalizeZipArchive(Buffer.from(await response.arrayBuffer()));
+  } catch (error) {
+    throw new Error(`${feed.id} ${(error as Error).message}`);
   }
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const etag = response.headers.get("etag") ?? undefined;

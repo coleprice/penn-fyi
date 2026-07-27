@@ -1,14 +1,35 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-23T00:00:00Z",
+  "updated_at": "2026-07-27T00:00:00Z",
   "feeds": [
+    {
+      "id": "amtrak",
+      "agency_name": "Amtrak",
+      "region": "United States",
+      "modes": ["intercity_rail"],
+      "priority": 1,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://content.amtrak.com/content/gtfs/GTFS.zip",
+      "download_url": "https://content.amtrak.com/content/gtfs/GTFS.zip",
+      "filter": {
+        "agency_ids": ["51"],
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Official Amtrak-published static GTFS. The archive also contains partner and Thruway agencies, so ingestion selects only agency_id 51. Keep source artifacts private until current reuse terms are reviewed."
+      },
+      "notes": "Nationwide first priority. This is the official static schedule feed; realtime remains a separate adapter concern."
+    },
     {
       "id": "amtrak-amtraker",
       "agency_name": "Amtrak via Amtraker",
       "region": "United States",
       "modes": ["intercity_rail"],
       "priority": 1,
-      "status": "operational",
+      "status": "planned",
       "adapter": "amtraker",
       "source_page": "https://beta.amtraker.com/about",
       "license": {
@@ -16,7 +37,7 @@
         "redistributable": false,
         "notes": "Community adapter and data terms are isolated from the GTFS pipeline; do not archive or republish payloads until reviewed."
       },
-      "notes": "Nationwide first priority. This is intentionally not processed by static GTFS ETL."
+      "notes": "Unofficial realtime candidate only. Keep isolated from the official Amtrak static GTFS pipeline and do not report it as operational until the adapter is implemented."
     },
     {
       "id": "njt-rail",
@@ -304,12 +325,92 @@
       }
     },
     {
+      "id": "bay-area-511-bart",
+      "agency_name": "Bay Area Rapid Transit",
+      "region": "San Francisco Bay Area",
+      "modes": ["rapid_transit"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://511.org/open-data/transit",
+      "download_url": "https://api.511.org/transit/datafeeds?operator_id=BA&api_key=${TRANSIT_511_API_KEY}",
+      "secret_name": "TRANSIT_511_API_KEY",
+      "filter": {
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Official 511 SF Bay feed. Keep source artifacts private; user-facing access must acknowledge data provided by 511.org, and MTC requires launch documentation within 30 days."
+      }
+    },
+    {
+      "id": "bay-area-511-muni",
+      "agency_name": "San Francisco Municipal Transportation Agency",
+      "region": "San Francisco",
+      "modes": ["light_rail", "bus", "cable_car"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://511.org/open-data/transit",
+      "download_url": "https://api.511.org/transit/datafeeds?operator_id=SF&api_key=${TRANSIT_511_API_KEY}",
+      "secret_name": "TRANSIT_511_API_KEY",
+      "filter": {
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Official 511 SF Bay feed. Keep source artifacts private; user-facing access must acknowledge data provided by 511.org, and MTC requires launch documentation within 30 days."
+      }
+    },
+    {
+      "id": "bay-area-511-caltrain",
+      "agency_name": "Caltrain",
+      "region": "San Francisco Peninsula / South Bay",
+      "modes": ["commuter_rail"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://511.org/open-data/transit",
+      "download_url": "https://api.511.org/transit/datafeeds?operator_id=CT&api_key=${TRANSIT_511_API_KEY}",
+      "secret_name": "TRANSIT_511_API_KEY",
+      "filter": {
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Official 511 SF Bay feed. Keep source artifacts private; user-facing access must acknowledge data provided by 511.org, and MTC requires launch documentation within 30 days."
+      }
+    },
+    {
+      "id": "bay-area-511-ferry",
+      "agency_name": "San Francisco Bay Ferry",
+      "region": "San Francisco Bay Area",
+      "modes": ["ferry"],
+      "priority": 2,
+      "status": "operational",
+      "adapter": "gtfs-static",
+      "source_page": "https://511.org/open-data/transit",
+      "download_url": "https://api.511.org/transit/datafeeds?operator_id=SB&api_key=${TRANSIT_511_API_KEY}",
+      "secret_name": "TRANSIT_511_API_KEY",
+      "filter": {
+        "service_window_days": 60
+      },
+      "license": {
+        "status": "review_required",
+        "redistributable": false,
+        "notes": "Official 511 SF Bay feed. Keep source artifacts private; user-facing access must acknowledge data provided by 511.org, and MTC requires launch documentation within 30 days."
+      }
+    },
+    {
       "id": "bay-area-511-regional",
       "agency_name": "511 SF Bay Regional Transit",
       "region": "San Francisco Bay Area",
       "modes": ["regional_rail", "rapid_transit", "light_rail", "bus", "ferry"],
       "priority": 2,
-      "status": "operational",
+      "status": "planned",
       "adapter": "gtfs-static",
       "source_page": "https://511.org/open-data/transit",
       "download_url": "https://api.511.org/transit/datafeeds?operator_id=RG&api_key=${TRANSIT_511_API_KEY}",
@@ -321,7 +422,8 @@
         "status": "review_required",
         "redistributable": false,
         "notes": "Regional feed requires an Open 511 API key; keep the archive private until current terms are reviewed."
-      }
+      },
+      "notes": "The aggregate currently expands to more than 325 MB and exceeds the object-based ETL memory envelope. Core operator feeds are operational separately while a streaming transform is evaluated."
     },
     {
       "id": "mbta",

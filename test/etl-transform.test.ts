@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeZipArchive } from "../etl/download.ts";
 import { filterGtfs, readGtfsDirectory } from "../etl/gtfs.ts";
 import { generateSwapSql } from "../etl/sql.ts";
 import type { FeedDefinition } from "../etl/types.ts";
@@ -14,6 +15,7 @@ const fixtureFeed: FeedDefinition = {
   source_page: "https://example.com/source",
   download_url: "https://example.com/gtfs.zip",
   filter: {
+    agency_ids: ["SYN"],
     bbox: {
       west: -75.1,
       south: 39.9,
@@ -29,6 +31,20 @@ const fixtureFeed: FeedDefinition = {
 };
 
 describe("static GTFS transform", () => {
+  it("trims provider data appended after a valid ZIP archive", () => {
+    const endOfCentralDirectory = Buffer.alloc(22);
+    endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+    const archive = Buffer.concat([
+      Buffer.from("PK"),
+      endOfCentralDirectory,
+      Buffer.from("<html>provider footer</html>"),
+    ]);
+
+    expect(normalizeZipArchive(archive)).toEqual(
+      archive.subarray(0, 2 + endOfCentralDirectory.length),
+    );
+  });
+
   it("filters by service window and bounding box without network access", async () => {
     const source = await readGtfsDirectory("fixtures/gtfs/minimal");
     const filtered = filterGtfs(
@@ -38,6 +54,7 @@ describe("static GTFS transform", () => {
     );
 
     expect(filtered.trips.map((row) => row.trip_id)).toEqual(["T1"]);
+    expect(filtered.agency.map((row) => row.agency_id)).toEqual(["SYN"]);
     expect(filtered.routes.map((row) => row.route_id)).toEqual(["R1"]);
     expect(filtered.stops.map((row) => row.stop_id)).toEqual([
       "HUB",
