@@ -9,7 +9,7 @@ security fixes. This scaffold has not received a production security audit.
 
 Do not open a public issue containing an exploit, credential, private feed URL,
 or non-public transit artifact. Use GitHub's private vulnerability reporting
-for `github.com/<gh-user>/penn-fyi`. If that feature is not enabled, open a
+for `github.com/coleprice/penn-fyi`. If that feature is not enabled, open a
 minimal public issue asking the maintainer to establish a private channel,
 without including sensitive details.
 

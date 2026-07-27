@@ -132,7 +132,7 @@ download URL. There is intentionally no public artifact-serving path in v1.
 Requirements: Node.js 22 or newer and npm.
 
 ```sh
-git clone https://github.com/<gh-user>/penn-fyi.git
+git clone https://github.com/coleprice/penn-fyi.git
 cd penn-fyi
 npm install
 npx wrangler d1 migrations apply penn-fyi --local
@@ -194,7 +194,7 @@ Before describing this service as production-ready, maintainers must:
 - verify every enabled registry URL, license, attribution, and credential;
 - provision the named D1, KV, R2, Worker, routes, DNS, and Access applications;
 - replace all placeholder Cloudflare resource IDs;
-- configure the R2 30-day lifecycle and Access service-token policies;
+- configure Access service-token policies for private artifact access;
 - add narrowly scoped secrets described in [SECURITY.md](./SECURITY.md);
 - run the initial static ingests and validate atomic rollback behavior;
 - implement the Amtrak adapter, on-demand GTFS-Realtime cache, and lazy

@@ -2,8 +2,23 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "penn-fyi",
   "main": "src/index.ts",
+  "workers_dev": true,
   "compatibility_date": "2026-07-23",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "penn.fyi",
+      "custom_domain": true,
+    },
+    {
+      "pattern": "www.penn.fyi",
+      "custom_domain": true,
+    },
+    {
+      "pattern": "mcp.penn.fyi",
+      "custom_domain": true,
+    },
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -13,14 +28,14 @@
     {
       "binding": "DB",
       "database_name": "penn-fyi",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "480fe243-e363-46b9-8918-43ecb997ea4a",
       "migrations_dir": "./migrations",
     },
   ],
   "kv_namespaces": [
     {
       "binding": "TRANSIT_KV",
-      "id": "00000000000000000000000000000000",
+      "id": "87ce322d6ae14011897c172214bbf3f2",
     },
   ],
   "r2_buckets": [
@@ -30,8 +45,8 @@
     },
   ],
   "vars": {
-    "ENVIRONMENT": "development",
-    "GITHUB_REPOSITORY": "<gh-user>/penn-fyi",
+    "ENVIRONMENT": "production",
+    "GITHUB_REPOSITORY": "coleprice/penn-fyi",
     "FEED_STALE_AFTER_HOURS": "48",
     "RECENT_QUERY_WINDOW_DAYS": "14",
     "GTFS_RT_TTL_SECONDS": "25",
