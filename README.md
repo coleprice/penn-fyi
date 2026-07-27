@@ -7,8 +7,9 @@ Cloudflare.
 > [!IMPORTANT]
 > This repository is an early production implementation. The Cloudflare
 > resources, public domains, static GTFS ingestion, and the `list_feeds` and
-> `find_stops` MCP paths are live. The remaining schedule/realtime tools,
-> monitoring, rate limits, and automated lazy ingestion are not yet complete.
+> `find_stops` and static `next_departures` MCP paths are live. The remaining
+> realtime tools, monitoring, rate limits, and automated lazy ingestion are
+> not yet complete.
 
 ## Scope and priorities
 
@@ -57,8 +58,9 @@ it does not invent a “Port Authority” feed.
 - GitHub Actions entry points for dispatch-driven and safety-net ingestion
 - Secret scanning in the local Git hook and `npm run check`
 
-Only `list_feeds` and `find_stops` are expected to be complete in this initial
-scaffold. The other MCP tools are deliberate, typed placeholders.
+`list_feeds`, `find_stops`, and static-schedule `next_departures` are
+implemented. Realtime merging, trip status, transfer risk, and service alerts
+remain deliberate, typed placeholders.
 
 ## Production architecture
 
@@ -99,10 +101,10 @@ Public surfaces are `penn.fyi` for the landing page and directory, and
 `mcp.penn.fyi/mcp` for MCP. `gtfs.penn.fyi` is private by default behind
 Cloudflare Access and is intended only for CI and Worker service-token clients.
 
-The implementation includes the bindings, static ETL, admin freshness gate,
-and D1 query layer. The optional Amtraker realtime adapter, on-demand
-GTFS-Realtime path, and Worker-to-GitHub lazy dispatch are production-design
-contracts that are not implemented yet.
+The implementation includes the bindings, static ETL, admin freshness gate, D1
+stop search, and dated static schedule queries. The optional Amtraker realtime
+adapter, on-demand GTFS-Realtime path, and Worker-to-GitHub lazy dispatch are
+production-design contracts that are not implemented yet.
 
 ## Feed lifecycle
 
@@ -162,9 +164,11 @@ npx @modelcontextprotocol/inspector
 ```
 
 In the Inspector, select **Streamable HTTP** and connect to
-`http://localhost:8787/mcp`. Verify tool discovery, call `list_feeds`, and try
-`find_stops` with names from the synthetic fixture. Inspector behavior confirms
-the protocol surface; it does not prove that live upstream feeds are ready.
+`http://localhost:8787/mcp`. Verify tool discovery, call `list_feeds`, try
+`find_stops` with names from the synthetic fixture, and call
+`next_departures` with exact stop IDs plus a `service_date`. Inspector behavior
+confirms the protocol surface; it does not prove that live upstream feeds are
+ready.
 
 ## Tests and checks
 
@@ -177,11 +181,11 @@ npm run check
 ```
 
 The committed fixture is synthetic and intentionally tiny. Tests exercise
-deterministic registry, GTFS transformation, `list_feeds`, and `find_stops`
-behavior without network access; the stop-search acceptance test reads the
-committed fixture through an in-memory store. Do not replace fixture tests with
-live agency calls: upstream availability, credentials, and schedule changes
-would make the suite nondeterministic.
+deterministic registry, GTFS transformation, `list_feeds`, `find_stops`, and
+static schedule result formatting without network access; the stop-search
+acceptance test reads the committed fixture through an in-memory store. Do not
+replace fixture tests with live agency calls: upstream availability,
+credentials, and schedule changes would make the suite nondeterministic.
 
 `npm run check` also performs a Wrangler dry run. It is the closest local
 preflight, but it is not a production deployment test.
@@ -196,9 +200,9 @@ Before describing this service as production-ready, maintainers must:
 - configure Access service-token policies for private artifact access;
 - add narrowly scoped secrets described in [SECURITY.md](./SECURITY.md);
 - run the initial static ingests and validate atomic rollback behavior;
-- implement the Amtrak adapter, on-demand GTFS-Realtime cache, and lazy
-  repository dispatch;
-- finish and integration-test the four stubbed transit tools;
+- implement the optional Amtraker realtime adapter, on-demand GTFS-Realtime
+  cache, and lazy repository dispatch;
+- finish and integration-test the three remaining stubbed transit tools;
 - verify representative MCP clients against the deployed endpoint;
 - add alerting, dashboards, quotas/rate limits, restore procedures, and an
   incident runbook; and

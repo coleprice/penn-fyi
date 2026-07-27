@@ -70,6 +70,28 @@ export interface StopRecord {
   readonly wheelchairBoarding: number | null;
 }
 
+export interface ScheduledTripRecord {
+  readonly feedId: string;
+  readonly tripId: string;
+  readonly tripShortName: string | null;
+  readonly routeId: string;
+  readonly routeShortName: string | null;
+  readonly routeLongName: string | null;
+  readonly routeType: number;
+  readonly tripHeadsign: string | null;
+  readonly directionId: number | null;
+  readonly fromStopId: string;
+  readonly fromStopName: string;
+  readonly fromTimezone: string;
+  readonly departureTime: string;
+  readonly departureSeconds: number;
+  readonly toStopId: string | null;
+  readonly toStopName: string | null;
+  readonly toTimezone: string | null;
+  readonly arrivalTime: string | null;
+  readonly arrivalSeconds: number | null;
+}
+
 export interface FeedVersion {
   readonly feedId: string;
   readonly ingestedAt: string;

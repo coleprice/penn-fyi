@@ -41,7 +41,7 @@ function insert(
 const TABLE_DDL: Record<string, string> = {
   stops: `(feed_id TEXT NOT NULL, stop_id TEXT NOT NULL, stop_name TEXT NOT NULL, stop_lat REAL, stop_lon REAL, parent_station TEXT, platform_code TEXT, location_type INTEGER, wheelchair_boarding INTEGER, timezone TEXT, PRIMARY KEY (feed_id, stop_id))`,
   routes: `(feed_id TEXT NOT NULL, route_id TEXT NOT NULL, agency_id TEXT, route_short_name TEXT, route_long_name TEXT, route_type INTEGER NOT NULL, route_color TEXT, route_text_color TEXT, PRIMARY KEY (feed_id, route_id))`,
-  trips: `(feed_id TEXT NOT NULL, trip_id TEXT NOT NULL, route_id TEXT NOT NULL, service_id TEXT NOT NULL, trip_headsign TEXT, direction_id INTEGER, wheelchair_accessible INTEGER, bikes_allowed INTEGER, PRIMARY KEY (feed_id, trip_id))`,
+  trips: `(feed_id TEXT NOT NULL, trip_id TEXT NOT NULL, route_id TEXT NOT NULL, service_id TEXT NOT NULL, trip_headsign TEXT, direction_id INTEGER, wheelchair_accessible INTEGER, bikes_allowed INTEGER, trip_short_name TEXT, PRIMARY KEY (feed_id, trip_id))`,
   stop_times: `(feed_id TEXT NOT NULL, trip_id TEXT NOT NULL, stop_sequence INTEGER NOT NULL, stop_id TEXT NOT NULL, arrival_time TEXT, departure_time TEXT, pickup_type INTEGER, drop_off_type INTEGER, PRIMARY KEY (feed_id, trip_id, stop_sequence))`,
   calendar: `(feed_id TEXT NOT NULL, service_id TEXT NOT NULL, monday INTEGER NOT NULL, tuesday INTEGER NOT NULL, wednesday INTEGER NOT NULL, thursday INTEGER NOT NULL, friday INTEGER NOT NULL, saturday INTEGER NOT NULL, sunday INTEGER NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, PRIMARY KEY (feed_id, service_id))`,
   calendar_dates: `(feed_id TEXT NOT NULL, service_id TEXT NOT NULL, date TEXT NOT NULL, exception_type INTEGER NOT NULL, PRIMARY KEY (feed_id, service_id, date))`,
@@ -129,6 +129,7 @@ export function generateSwapSql(
         "direction_id",
         "wheelchair_accessible",
         "bikes_allowed",
+        "trip_short_name",
       ],
       tables.trips.map((row) => [
         feedId,
@@ -139,6 +140,7 @@ export function generateSwapSql(
         number(row.direction_id),
         number(row.wheelchair_accessible),
         number(row.bikes_allowed),
+        sql(row.trip_short_name),
       ]),
     ),
     ...insert(
@@ -267,6 +269,7 @@ export function generateSwapSql(
     "CREATE INDEX idx_stops_coordinates ON stops(stop_lat, stop_lon);",
     "CREATE INDEX idx_routes_name ON routes(feed_id, route_short_name, route_long_name);",
     "CREATE INDEX idx_trips_route_service ON trips(feed_id, route_id, service_id);",
+    "CREATE INDEX idx_trips_short_name ON trips(feed_id, trip_short_name);",
     "CREATE INDEX idx_stop_times_stop_departure ON stop_times(feed_id, stop_id, departure_time);",
     "CREATE INDEX idx_calendar_dates_date ON calendar_dates(feed_id, date);",
     "CREATE INDEX idx_feed_versions_ingested ON feed_versions(feed_id, ingested_at DESC);",

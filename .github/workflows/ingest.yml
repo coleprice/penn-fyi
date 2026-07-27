@@ -69,9 +69,9 @@ jobs:
           path: |
             etl/state
             etl/downloads
-          key: gtfs-http-state-${{ runner.os }}-${{ github.run_id }}
+          key: gtfs-http-state-v2-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
-            gtfs-http-state-${{ runner.os }}-
+            gtfs-http-state-v2-${{ runner.os }}-
 
       - name: Set up Node.js
         if: steps.gate.outputs.needed == 'true'

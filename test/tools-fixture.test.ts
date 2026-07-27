@@ -4,13 +4,20 @@ import { parse } from "csv-parse/sync";
 import { describe, expect, it } from "vitest";
 
 import type {
+  FindScheduledTripsInput,
   FindStopCandidatesInput,
+  FindStopsByIdInput,
   TransitStore,
 } from "../src/data/transit-store";
 import type { FreshnessStore } from "../src/freshness";
 import { parseFeedRegistry } from "../src/registry/parse";
 import { TransitToolService } from "../src/tools/service";
-import type { FeedFreshness, FeedVersion, StopRecord } from "../src/types/gtfs";
+import type {
+  FeedFreshness,
+  FeedVersion,
+  ScheduledTripRecord,
+  StopRecord,
+} from "../src/types/gtfs";
 
 interface FixtureStopRow {
   readonly stop_id: string;
@@ -62,6 +69,22 @@ class FixtureGtfsStore implements TransitStore {
           },
         ]
       : [];
+  }
+
+  async findStopsById(
+    input: FindStopsByIdInput,
+  ): Promise<readonly StopRecord[]> {
+    return this.stops.filter(
+      (stop) =>
+        stop.stopId.toLowerCase() === input.stopId.toLowerCase() &&
+        (input.feedId === undefined || stop.feedId === input.feedId),
+    );
+  }
+
+  async findScheduledTrips(
+    _input: FindScheduledTripsInput,
+  ): Promise<readonly ScheduledTripRecord[]> {
+    return [];
   }
 }
 
@@ -122,6 +145,7 @@ describe("Worker tools with committed fixtures", () => {
           id: "synthetic",
           agency: "Synthetic Transit",
           status: "operational",
+          availability: "ready",
           freshness: {
             status: "available",
             last_ingested: "2026-07-23T12:01:00.000Z",

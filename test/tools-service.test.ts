@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  FindScheduledTripsInput,
   FindStopCandidatesInput,
+  FindStopsByIdInput,
   TransitStore,
 } from "../src/data/transit-store";
 import type { FreshnessStore } from "../src/freshness";
@@ -10,6 +12,7 @@ import type {
   FeedFreshness,
   FeedRegistry,
   FeedVersion,
+  ScheduledTripRecord,
   StopRecord,
 } from "../src/types/gtfs";
 
@@ -21,7 +24,8 @@ const registry: FeedRegistry = {
       id: "amtrak",
       agency_name: "Amtrak",
       region: "United States",
-      adapter: "amtraker",
+      adapter: "gtfs-static",
+      download_url: "https://example.test/amtrak.zip",
       priority: 1,
       status: "operational",
       source_page: "https://example.test/amtrak",
@@ -91,6 +95,52 @@ class FakeStore implements TransitStore {
       ingestedAt: "2026-07-23T14:00:00.000Z",
     }));
   }
+
+  async findStopsById(
+    input: FindStopsByIdInput,
+  ): Promise<readonly StopRecord[]> {
+    return stops.filter(
+      (stop) =>
+        stop.stopId.toLowerCase() === input.stopId.toLowerCase() &&
+        (input.feedId === undefined || stop.feedId === input.feedId),
+    );
+  }
+
+  async findScheduledTrips(
+    input: FindScheduledTripsInput,
+  ): Promise<readonly ScheduledTripRecord[]> {
+    if (
+      input.feedId !== "amtrak" ||
+      input.fromStopId.toUpperCase() !== "NYP" ||
+      input.toStopId?.toUpperCase() !== "HAR" ||
+      input.serviceDate !== "20260729"
+    ) {
+      return [];
+    }
+    return [
+      {
+        feedId: "amtrak",
+        tripId: "643",
+        tripShortName: "643",
+        routeId: "Keystone",
+        routeShortName: "Keystone",
+        routeLongName: "Keystone Service",
+        routeType: 2,
+        tripHeadsign: "Harrisburg",
+        directionId: 1,
+        fromStopId: "NYP",
+        fromStopName: "New York Penn Station",
+        fromTimezone: "America/New_York",
+        departureTime: "14:15:00",
+        departureSeconds: 14 * 3600 + 15 * 60,
+        toStopId: "HAR",
+        toStopName: "Harrisburg",
+        toTimezone: "America/New_York",
+        arrivalTime: "17:35:00",
+        arrivalSeconds: 17 * 3600 + 35 * 60,
+      },
+    ];
+  }
 }
 
 class FakeFreshness {
@@ -151,6 +201,7 @@ describe("TransitToolService", () => {
         {
           id: "amtrak",
           priority: 1,
+          availability: "ready",
           freshness: {
             status: "fresh",
             last_ingested: "2026-07-23T14:00:00.000Z",
@@ -158,6 +209,7 @@ describe("TransitToolService", () => {
         },
         {
           id: "bay-area",
+          availability: "ready",
           freshness: {
             status: "available",
             last_ingested: "2026-07-23T14:00:00.000Z",
@@ -202,6 +254,48 @@ describe("TransitToolService", () => {
     });
     const resultStops = result.stops;
     expect(Array.isArray(resultStops)).toBe(true);
+  });
+
+  it("returns dated origin-to-destination static schedule options", async () => {
+    await expect(
+      service().nextDepartures({
+        from_stop: "NYP",
+        to_stop: "HAR",
+        service_date: "2026-07-29",
+        feed: "amtrak",
+      }),
+    ).resolves.toMatchObject({
+      count: 1,
+      realtime_included: false,
+      data_as_of: "2026-07-23T14:00:00.000Z",
+      departures: [
+        {
+          feed_id: "amtrak",
+          trip_id: "643",
+          train_number: "643",
+          status: "scheduled",
+          origin: {
+            stop_id: "NYP",
+            scheduled_departure: "2026-07-29T14:15:00-04:00",
+          },
+          destination: {
+            stop_id: "HAR",
+            scheduled_arrival: "2026-07-29T17:35:00-04:00",
+          },
+        },
+      ],
+    });
+  });
+
+  it("rejects inverted schedule windows", async () => {
+    await expect(
+      service().nextDepartures({
+        from_stop: "NYP",
+        service_date: "2026-07-29",
+        after_time: "18:00",
+        before_time: "08:00",
+      }),
+    ).rejects.toThrow(/before_time/);
   });
 
   it("returns an honest structured result for unavailable tools", () => {

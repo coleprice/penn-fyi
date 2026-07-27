@@ -84,6 +84,7 @@ describe("static GTFS transform", () => {
     );
 
     expect(output).toContain("CREATE TABLE staging_stops");
+    expect(output).toContain("trip_short_name");
     expect(output).toContain("ALTER TABLE staging_stops RENAME TO stops;");
     expect(output).toContain("CREATE VIRTUAL TABLE stop_search USING fts5");
     expect(output).toContain("INSERT INTO staging_feed_ingests");

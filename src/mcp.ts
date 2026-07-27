@@ -62,21 +62,60 @@ export function createTransitMcpServer(service: TransitToolService): McpServer {
     "next_departures",
     {
       description:
-        "Return scheduled departures merged with realtime updates. Not available in the initial scaffold. Future times will be timezone-aware ISO-8601 values with offsets and every result includes data_as_of.",
+        "Return scheduled trips departing an exact feed-scoped GTFS stop ID, optionally requiring a later destination stop on the same trip. service_date is the origin's local GTFS service date; after_time and before_time are local GTFS HH:MM[:SS] values and may run through 47:59:59 for after-midnight service. Results are timezone-offset ISO-8601 timestamps. Realtime is not yet merged; every result states realtime_included and data_as_of.",
       inputSchema: {
-        stop: z.string().min(1),
-        route: z.string().min(1).optional(),
-        direction: z.string().min(1).optional(),
+        from_stop: z
+          .string()
+          .min(1)
+          .describe(
+            "Exact GTFS origin stop ID returned by find_stops, such as NYP.",
+          ),
+        to_stop: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Optional exact destination stop ID that must occur later on the same trip, such as HAR.",
+          ),
+        service_date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe(
+            "Origin-local GTFS service date in YYYY-MM-DD form. Defaults to the current local date.",
+          ),
+        after_time: z
+          .string()
+          .regex(/^\d{2}:[0-5]\d(?::[0-5]\d)?$/)
+          .optional()
+          .describe(
+            "Earliest origin-local GTFS departure time, HH:MM or HH:MM:SS. Defaults to now for today and 00:00 for an explicit date.",
+          ),
+        before_time: z
+          .string()
+          .regex(/^\d{2}:[0-5]\d(?::[0-5]\d)?$/)
+          .optional()
+          .describe(
+            "Latest origin-local GTFS departure time through 47:59:59.",
+          ),
+        feed: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Optional feed ID used to disambiguate stop IDs, such as amtrak.",
+          ),
+        route: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Optional route ID, train number, route short name, or substring of the route long name.",
+          ),
         limit: z.number().int().min(1).max(50).default(10),
       },
     },
-    async () =>
-      result(
-        service.stub(
-          "next_departures",
-          "Schedule and GTFS-Realtime departure merging is not implemented yet.",
-        ),
-      ),
+    async (input) => result(await service.nextDepartures(input)),
   );
 
   server.registerTool(

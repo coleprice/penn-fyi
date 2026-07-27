@@ -151,3 +151,26 @@ streaming transform.
 archive. Downloads normalize only the bytes after a structurally valid ZIP
 end-of-central-directory record before hashing, parsing, and archiving. Public
 surfaces acknowledge that Bay Area data is provided by 511.org.
+
+## D-013 — Make static schedule time explicit
+
+- **Date:** 2026-07-27
+- **Status:** accepted
+
+`next_departures` accepts an exact origin stop ID, an optional later
+destination stop on the same trip, an optional feed and route, and an explicit
+origin-local `service_date` plus GTFS `after_time`/`before_time` window. GTFS
+times through `47:59:59` are accepted so after-midnight trips remain attached
+to their published service day.
+
+Results convert scheduled times to timezone-offset ISO-8601 timestamps and
+state `realtime_included: false` until realtime merging exists. This keeps
+future-date schedule answers useful without implying live train status.
+Static GTFS `trip_short_name` is retained as `train_number` so Amtrak results
+expose recognizable numbers rather than only internal trip IDs.
+The conditional-download cache namespace is advanced when a schema change
+requires unchanged upstream feeds to be transformed and published again.
+
+Registry `status` continues to describe configuration lifecycle.
+`list_feeds.availability` separately reports whether operational schedule data
+is actually ready, missing, stale, or not enabled.
