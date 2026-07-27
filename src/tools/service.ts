@@ -23,9 +23,12 @@ export interface FindStopsInput {
   readonly limit?: number | undefined;
 }
 
+export type StopReferenceInput = string | number;
+
 export interface NextDeparturesInput {
-  readonly from_stop: string;
-  readonly to_stop?: string | undefined;
+  readonly from_stop?: StopReferenceInput | undefined;
+  readonly stop?: StopReferenceInput | undefined;
+  readonly to_stop?: StopReferenceInput | undefined;
   readonly service_date?: string | undefined;
   readonly after_time?: string | undefined;
   readonly before_time?: string | undefined;
@@ -155,6 +158,42 @@ function validServiceDate(value: string): boolean {
     !Number.isNaN(parsed.getTime()) &&
     parsed.toISOString().slice(0, 10) === value
   );
+}
+
+function stopReferenceText(value: StopReferenceInput): string {
+  return typeof value === "number" ? String(value) : value.trim();
+}
+
+function parsedStopReference(
+  value: StopReferenceInput,
+  feedIds: ReadonlySet<string>,
+): { readonly stopId: string; readonly feedId?: string | undefined } {
+  const reference = stopReferenceText(value);
+  if (reference === "") {
+    throw new Error("stop identifiers must not be blank");
+  }
+  const separator = reference.indexOf(":");
+  if (separator > 0) {
+    const possibleFeedId = reference.slice(0, separator);
+    if (feedIds.has(possibleFeedId)) {
+      const stopId = reference.slice(separator + 1).trim();
+      if (stopId === "") {
+        throw new Error("compound stop references must include a stop ID");
+      }
+      return { stopId, feedId: possibleFeedId };
+    }
+  }
+  return { stopId: reference };
+}
+
+function oneFeedId(
+  values: readonly (string | undefined)[],
+): string | undefined {
+  const feedIds = [...new Set(values.filter((value) => value !== undefined))];
+  if (feedIds.length > 1) {
+    throw new Error("feed, from_stop, and to_stop must refer to the same feed");
+  }
+  return feedIds[0];
 }
 
 function timeSeconds(value: string): number {
@@ -398,12 +437,34 @@ export class TransitToolService {
   async nextDepartures(
     input: NextDeparturesInput,
   ): Promise<Record<string, unknown>> {
-    const fromStopId = input.from_stop.trim();
-    const toStopId = input.to_stop?.trim();
-    const feedId = input.feed?.trim();
-    if (fromStopId === "" || toStopId === "" || feedId === "") {
-      throw new Error("stop and feed identifiers must not be blank");
+    if (input.from_stop !== undefined && input.stop !== undefined) {
+      throw new Error(
+        "use from_stop; do not send both from_stop and the legacy stop alias",
+      );
     }
+    const originInput = input.from_stop ?? input.stop;
+    if (originInput === undefined) {
+      throw new Error("from_stop is required; legacy clients may send stop");
+    }
+    const explicitFeedId = input.feed?.trim();
+    if (explicitFeedId === "") {
+      throw new Error("feed identifiers must not be blank");
+    }
+    const knownFeedIds = new Set(
+      this.registry.feeds.map((definition) => definition.id),
+    );
+    const origin = parsedStopReference(originInput, knownFeedIds);
+    const destination =
+      input.to_stop === undefined
+        ? undefined
+        : parsedStopReference(input.to_stop, knownFeedIds);
+    const feedId = oneFeedId([
+      explicitFeedId,
+      origin.feedId,
+      destination?.feedId,
+    ]);
+    const fromStopId = origin.stopId;
+    const toStopId = destination?.stopId;
 
     if (
       input.service_date !== undefined &&

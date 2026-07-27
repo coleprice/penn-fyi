@@ -1,3 +1,5 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -7,6 +9,7 @@ import type {
   TransitStore,
 } from "../src/data/transit-store";
 import type { FreshnessStore } from "../src/freshness";
+import { createTransitMcpServer } from "../src/mcp";
 import { TransitToolService } from "../src/tools/service";
 import type {
   FeedFreshness,
@@ -72,6 +75,30 @@ const stops: readonly StopRecord[] = [
     platformCode: null,
     wheelchairBoarding: 1,
   },
+  {
+    feedId: "bay-area",
+    stopId: "901401",
+    name: "Civic Center / UN Plaza",
+    latitude: 37.7795,
+    longitude: -122.413,
+    timezone: "America/Los_Angeles",
+    locationType: 0,
+    parentStation: null,
+    platformCode: "1",
+    wheelchairBoarding: 1,
+  },
+  {
+    feedId: "bay-area",
+    stopId: "907101",
+    name: "San Francisco International Airport",
+    latitude: 37.616,
+    longitude: -122.391,
+    timezone: "America/Los_Angeles",
+    locationType: 0,
+    parentStation: null,
+    platformCode: "1",
+    wheelchairBoarding: 1,
+  },
 ];
 
 class FakeStore implements TransitStore {
@@ -109,6 +136,36 @@ class FakeStore implements TransitStore {
   async findScheduledTrips(
     input: FindScheduledTripsInput,
   ): Promise<readonly ScheduledTripRecord[]> {
+    if (
+      input.feedId === "bay-area" &&
+      input.fromStopId === "901401" &&
+      input.toStopId === "907101" &&
+      input.serviceDate === "20260729"
+    ) {
+      return [
+        {
+          feedId: "bay-area",
+          tripId: "yellow-901",
+          tripShortName: null,
+          routeId: "YELLOW",
+          routeShortName: "Yellow",
+          routeLongName: "Antioch - SFO",
+          routeType: 1,
+          tripHeadsign: "San Francisco International Airport",
+          directionId: 0,
+          fromStopId: "901401",
+          fromStopName: "Civic Center / UN Plaza",
+          fromTimezone: "America/Los_Angeles",
+          departureTime: "21:10:00",
+          departureSeconds: 21 * 3600 + 10 * 60,
+          toStopId: "907101",
+          toStopName: "San Francisco International Airport",
+          toTimezone: "America/Los_Angeles",
+          arrivalTime: "21:40:00",
+          arrivalSeconds: 21 * 3600 + 40 * 60,
+        },
+      ];
+    }
     if (
       input.feedId !== "amtrak" ||
       input.fromStopId.toUpperCase() !== "NYP" ||
@@ -249,8 +306,8 @@ describe("TransitToolService", () => {
     });
 
     expect(result).toMatchObject({
-      count: 1,
-      stops: [{ stop_id: "SFO" }],
+      count: 2,
+      stops: [{ stop_id: "SFO" }, { stop_id: "907101" }],
     });
     const resultStops = result.stops;
     expect(Array.isArray(resultStops)).toBe(true);
@@ -285,6 +342,109 @@ describe("TransitToolService", () => {
         },
       ],
     });
+  });
+
+  it("accepts numeric stop IDs through the legacy stop alias", async () => {
+    await expect(
+      service().nextDepartures({
+        stop: 901401,
+        to_stop: 907101,
+        service_date: "2026-07-29",
+        feed: "bay-area",
+      }),
+    ).resolves.toMatchObject({
+      count: 1,
+      query: {
+        from_stop: "901401",
+        to_stop: "907101",
+        feed: "bay-area",
+      },
+      departures: [
+        {
+          feed_id: "bay-area",
+          origin: { stop_id: "901401" },
+          destination: { stop_id: "907101" },
+        },
+      ],
+    });
+  });
+
+  it("publishes and executes the compatible MCP stop schema", async () => {
+    const server = createTransitMcpServer(service());
+    const client = new Client({
+      name: "penn-fyi-test",
+      version: "1.0.0",
+    });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    try {
+      const tools = await client.listTools();
+      const tool = tools.tools.find(
+        (candidate) => candidate.name === "next_departures",
+      );
+      expect(tool?.inputSchema.properties).toMatchObject({
+        from_stop: {},
+        stop: {},
+        to_stop: {},
+      });
+      expect(tool?.inputSchema.properties?.from_stop).toMatchObject({
+        anyOf: [{ type: "string" }, { type: "integer" }],
+      });
+      expect(tool?.inputSchema.required ?? []).not.toContain("from_stop");
+
+      const call = await client.callTool({
+        name: "next_departures",
+        arguments: {
+          stop: 901401,
+          to_stop: 907101,
+          service_date: "2026-07-29",
+          feed: "bay-area",
+        },
+      });
+      expect(call.isError).not.toBe(true);
+      expect(call).toMatchObject({
+        structuredContent: {
+          count: 1,
+          query: {
+            from_stop: "901401",
+            to_stop: "907101",
+          },
+        },
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("resolves feed-qualified compound stop references", async () => {
+    await expect(
+      service().nextDepartures({
+        from_stop: "bay-area:901401",
+        to_stop: "bay-area:907101",
+        service_date: "2026-07-29",
+      }),
+    ).resolves.toMatchObject({
+      count: 1,
+      query: {
+        from_stop: "901401",
+        to_stop: "907101",
+        feed: "bay-area",
+      },
+    });
+  });
+
+  it("rejects conflicting feed-qualified stop references", async () => {
+    await expect(
+      service().nextDepartures({
+        from_stop: "amtrak:NYP",
+        to_stop: "bay-area:907101",
+        service_date: "2026-07-29",
+      }),
+    ).rejects.toThrow(/same feed/);
   });
 
   it("rejects inverted schedule windows", async () => {

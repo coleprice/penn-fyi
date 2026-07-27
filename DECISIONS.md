@@ -174,3 +174,20 @@ requires unchanged upstream feeds to be transformed and published again.
 Registry `status` continues to describe configuration lifecycle.
 `list_feeds.availability` separately reports whether operational schedule data
 is actually ready, missing, stale, or not enabled.
+
+## D-014 — Make stop references tolerant at the MCP boundary
+
+- **Date:** 2026-07-27
+- **Status:** accepted
+
+`next_departures` keeps `from_stop` as its canonical origin input but accepts
+the deprecated `stop` alias so clients with a cached earlier schema continue
+to work. Origin and destination stop references accept JSON strings or safe
+non-negative integers because some MCP clients serialize numeric-looking GTFS
+IDs as numbers. Strings remain the documented safe form because numeric
+serialization cannot preserve leading zeroes.
+
+Stop references may be qualified as `feed_id:stop_id`. The service strips a
+recognized registry feed prefix before querying D1 and rejects conflicting
+origin, destination, and explicit feed identifiers. Unrecognized prefixes
+remain part of the GTFS stop ID because colons are valid identifier content.

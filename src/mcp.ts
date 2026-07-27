@@ -10,6 +10,15 @@ function result(value: Record<string, unknown>) {
   };
 }
 
+function stopReference(description: string) {
+  return z
+    .union([
+      z.string().min(1),
+      z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    ])
+    .describe(description);
+}
+
 export function createTransitMcpServer(service: TransitToolService): McpServer {
   const server = new McpServer({
     name: "penn-fyi",
@@ -62,21 +71,17 @@ export function createTransitMcpServer(service: TransitToolService): McpServer {
     "next_departures",
     {
       description:
-        "Return scheduled trips departing an exact feed-scoped GTFS stop ID, optionally requiring a later destination stop on the same trip. service_date is the origin's local GTFS service date; after_time and before_time are local GTFS HH:MM[:SS] values and may run through 47:59:59 for after-midnight service. Results are timezone-offset ISO-8601 timestamps. Realtime is not yet merged; every result states realtime_included and data_as_of.",
+        "Return scheduled trips departing an exact GTFS stop ID, optionally requiring a later destination stop on the same trip. Use from_stop for the origin; the deprecated stop alias remains accepted for older clients. Numeric stop IDs and feed-qualified references such as bay-area-511-bart:901401 are accepted. service_date is the origin's local GTFS service date; after_time and before_time are local GTFS HH:MM[:SS] values and may run through 47:59:59 for after-midnight service. Results are timezone-offset ISO-8601 timestamps. Realtime is not yet merged; every result states realtime_included and data_as_of.",
       inputSchema: {
-        from_stop: z
-          .string()
-          .min(1)
-          .describe(
-            "Exact GTFS origin stop ID returned by find_stops, such as NYP.",
-          ),
-        to_stop: z
-          .string()
-          .min(1)
-          .optional()
-          .describe(
-            "Optional exact destination stop ID that must occur later on the same trip, such as HAR.",
-          ),
+        from_stop: stopReference(
+          "Preferred origin. Exact GTFS stop ID returned by find_stops, optionally feed-qualified as feed_id:stop_id. Strings are safest for IDs with leading zeroes.",
+        ).optional(),
+        stop: stopReference(
+          "Deprecated compatibility alias for from_stop. Do not send both fields.",
+        ).optional(),
+        to_stop: stopReference(
+          "Optional exact destination stop ID that must occur later on the same trip; may use feed_id:stop_id.",
+        ).optional(),
         service_date: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)

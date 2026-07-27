@@ -166,7 +166,11 @@ npx @modelcontextprotocol/inspector
 In the Inspector, select **Streamable HTTP** and connect to
 `http://localhost:8787/mcp`. Verify tool discovery, call `list_feeds`, try
 `find_stops` with names from the synthetic fixture, and call
-`next_departures` with exact stop IDs plus a `service_date`. Inspector behavior
+`next_departures` with exact stop IDs plus a `service_date`. `from_stop` is the
+canonical origin field; the deprecated `stop` alias remains accepted for
+clients holding an older schema. Numeric JSON stop IDs are accepted, although
+strings preserve leading zeroes. A stop may also be qualified as
+`feed_id:stop_id`, such as `bay-area-511-bart:901401`. Inspector behavior
 confirms the protocol surface; it does not prove that live upstream feeds are
 ready.
 
