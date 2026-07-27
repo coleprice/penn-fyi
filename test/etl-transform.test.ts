@@ -47,7 +47,7 @@ describe("static GTFS transform", () => {
     expect(filtered.stop_times).toHaveLength(3);
   });
 
-  it("emits staged tables and a transactionally swapped live set", async () => {
+  it("emits a D1-compatible staged swap without nested transactions", async () => {
     const source = await readGtfsDirectory("fixtures/gtfs/minimal");
     const filtered = filterGtfs(
       source,
@@ -67,11 +67,11 @@ describe("static GTFS transform", () => {
     );
 
     expect(output).toContain("CREATE TABLE staging_stops");
-    expect(output).toContain("BEGIN IMMEDIATE;");
     expect(output).toContain("ALTER TABLE staging_stops RENAME TO stops;");
     expect(output).toContain("CREATE VIRTUAL TABLE stop_search USING fts5");
     expect(output).toContain("INSERT INTO staging_feed_ingests");
-    expect(output).toContain("COMMIT;");
+    expect(output).not.toContain("BEGIN");
+    expect(output).not.toContain("COMMIT");
     expect(output).not.toContain("Expired Service");
     expect(output).not.toContain("Outside Filter");
   });

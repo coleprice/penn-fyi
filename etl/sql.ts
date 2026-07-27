@@ -256,7 +256,6 @@ export function generateSwapSql(
         ],
       ],
     ),
-    "BEGIN IMMEDIATE;",
     ...TABLES.map((table) => `ALTER TABLE ${table} RENAME TO old_${table};`),
     ...TABLES.map(
       (table) => `ALTER TABLE staging_${table} RENAME TO ${table};`,
@@ -271,7 +270,6 @@ export function generateSwapSql(
     "CREATE INDEX idx_stop_times_stop_departure ON stop_times(feed_id, stop_id, departure_time);",
     "CREATE INDEX idx_calendar_dates_date ON calendar_dates(feed_id, date);",
     "CREATE INDEX idx_feed_versions_ingested ON feed_versions(feed_id, ingested_at DESC);",
-    "COMMIT;",
     "PRAGMA foreign_keys = ON;",
   ];
   return `${statements.join("\n\n")}\n`;
