@@ -1,6 +1,11 @@
 import type { TransitStore } from "../data/transit-store";
 import type { FreshnessStore } from "../freshness";
 import type {
+  RealtimeStationStatus,
+  RealtimeTrainStatus,
+  RealtimeTripProvider,
+} from "../realtime/types";
+import type {
   FeedDefinition,
   FeedRegistry,
   ScheduledTripRecord,
@@ -35,6 +40,14 @@ export interface NextDeparturesInput {
   readonly feed?: string | undefined;
   readonly route?: string | undefined;
   readonly limit?: number | undefined;
+}
+
+export type TripIdentifierInput = string | number;
+
+export interface TripStatusInput {
+  readonly feed: string;
+  readonly trip_or_train_number: TripIdentifierInput;
+  readonly service_date?: string | undefined;
 }
 
 export interface StubToolResult extends Readonly<Record<string, unknown>> {
@@ -87,6 +100,9 @@ function feedAvailability(
   if (feed.status !== "operational") {
     return "not_enabled";
   }
+  if (feed.adapter === "amtraker") {
+    return "ready";
+  }
   if (ingestedAt === undefined) {
     return "missing";
   }
@@ -123,7 +139,7 @@ function publicFeed(feed: FeedDefinition): Record<string, unknown> {
     status: feed.status,
     modes: feed.modes,
     has_static_schedule: feed.download_url !== undefined,
-    has_realtime: feed.realtime !== undefined,
+    has_realtime: feed.realtime !== undefined || feed.adapter === "amtraker",
     redistributable: feed.license.redistributable,
   };
 }
@@ -158,6 +174,10 @@ function validServiceDate(value: string): boolean {
     !Number.isNaN(parsed.getTime()) &&
     parsed.toISOString().slice(0, 10) === value
   );
+}
+
+function identifierText(value: TripIdentifierInput): string {
+  return typeof value === "number" ? String(value) : value.trim();
 }
 
 function stopReferenceText(value: StopReferenceInput): string {
@@ -327,12 +347,113 @@ function publicScheduledTrip(
   };
 }
 
+function delayMinutes(
+  scheduled: string | null,
+  reported: string | null,
+): number | null {
+  if (scheduled === null || reported === null) {
+    return null;
+  }
+  const scheduledTime = Date.parse(scheduled);
+  const reportedTime = Date.parse(reported);
+  if (Number.isNaN(scheduledTime) || Number.isNaN(reportedTime)) {
+    return null;
+  }
+  return Math.round((reportedTime - scheduledTime) / 60_000);
+}
+
+function currentDelayMinutes(train: RealtimeTrainStatus): number | null {
+  const current =
+    train.currentEvent === null
+      ? undefined
+      : train.stations.find(
+          (station) => station.stopId === train.currentEvent?.stopId,
+        );
+  if (current === undefined) {
+    return null;
+  }
+  return (
+    delayMinutes(current.scheduledDeparture, current.reportedDeparture) ??
+    delayMinutes(current.scheduledArrival, current.reportedArrival)
+  );
+}
+
+function publicRealtimeStation(
+  station: RealtimeStationStatus,
+): Record<string, unknown> {
+  return {
+    stop_id: station.stopId,
+    name: station.name,
+    timezone: station.timezone,
+    status: station.status,
+    scheduled_arrival: station.scheduledArrival,
+    reported_arrival: station.reportedArrival,
+    arrival_delay_minutes: delayMinutes(
+      station.scheduledArrival,
+      station.reportedArrival,
+    ),
+    scheduled_departure: station.scheduledDeparture,
+    reported_departure: station.reportedDeparture,
+    departure_delay_minutes: delayMinutes(
+      station.scheduledDeparture,
+      station.reportedDeparture,
+    ),
+    platform: station.platform,
+  };
+}
+
+function publicRealtimeTrain(
+  train: RealtimeTrainStatus,
+): Record<string, unknown> {
+  return {
+    train_id: train.trainId,
+    train_number: train.trainNumber,
+    route_name: train.routeName,
+    service_date: train.serviceDate,
+    train_state: train.trainState,
+    delay_minutes: currentDelayMinutes(train),
+    origin: {
+      stop_id: train.origin.stopId,
+      name: train.origin.name,
+      timezone: train.origin.timezone,
+    },
+    destination: {
+      stop_id: train.destination.stopId,
+      name: train.destination.name,
+      timezone: train.destination.timezone,
+    },
+    current_event:
+      train.currentEvent === null
+        ? null
+        : {
+            stop_id: train.currentEvent.stopId,
+            name: train.currentEvent.name,
+            timezone: train.currentEvent.timezone,
+          },
+    position:
+      train.latitude === null || train.longitude === null
+        ? null
+        : {
+            latitude: train.latitude,
+            longitude: train.longitude,
+            heading: train.heading,
+            speed_mph: train.speedMph,
+            observed_at: train.observedAt,
+          },
+    status_message: train.statusMessage,
+    alerts: train.alerts,
+    station_times: train.stations.map(publicRealtimeStation),
+    data_as_of: train.observedAt ?? train.updatedAt,
+  };
+}
+
 export class TransitToolService {
   constructor(
     private readonly registry: FeedRegistry,
     private readonly store: TransitStore,
     private readonly freshness: FreshnessStore,
     private readonly clock: Clock,
+    private readonly realtime?: RealtimeTripProvider | undefined,
   ) {}
 
   async listFeeds(): Promise<Record<string, unknown>> {
@@ -348,11 +469,14 @@ export class TransitToolService {
     const feeds = this.registry.feeds.map((feed) => {
       const freshness = freshnessByFeed.get(feed.id);
       const ingestedAt = freshness?.last_ingested ?? versionByFeed.get(feed.id);
+      const onDemand = feed.adapter === "amtraker";
       return {
         ...publicFeed(feed),
         availability: feedAvailability(feed, ingestedAt, freshness?.status),
         freshness: {
-          status: freshness?.status ?? (ingestedAt ? "available" : "missing"),
+          status:
+            freshness?.status ??
+            (ingestedAt ? "available" : onDemand ? "on_demand" : "missing"),
           checked_at: freshness?.checked_at ?? null,
           last_ingested: ingestedAt ?? null,
           last_modified: freshness?.last_modified ?? null,
@@ -575,6 +699,118 @@ export class TransitToolService {
       realtime_included: false,
       data_as_of: latestIso(versions.map((version) => version.ingestedAt)),
     };
+  }
+
+  async tripStatus(input: TripStatusInput): Promise<Record<string, unknown>> {
+    const feedId = input.feed.trim().toLocaleLowerCase("en-US");
+    if (feedId !== "amtrak" && feedId !== "amtrak-amtraker") {
+      return this.stub(
+        "trip_status",
+        `Realtime trip status is not implemented for feed "${input.feed.trim()}".`,
+      );
+    }
+    const identifier = identifierText(input.trip_or_train_number);
+    if (!/^[a-z0-9-]{1,32}$/i.test(identifier)) {
+      throw new Error(
+        "trip_or_train_number must contain 1–32 letters, numbers, or hyphens",
+      );
+    }
+    if (
+      input.service_date !== undefined &&
+      !validServiceDate(input.service_date)
+    ) {
+      throw new Error("service_date must be a real date in YYYY-MM-DD form");
+    }
+    if (this.realtime === undefined) {
+      return this.stub(
+        "trip_status",
+        "The Amtrak realtime adapter is not configured.",
+      );
+    }
+
+    const now = this.clock.now();
+    try {
+      await this.freshness.recordQueries(["amtrak"], toIso(now));
+    } catch (error) {
+      console.warn({
+        event: "trip_status_freshness_write_failed",
+        feed_id: "amtrak",
+        error: error instanceof Error ? error.name : "unknown",
+      });
+    }
+    try {
+      const lookup = await this.realtime.lookup(identifier);
+      const matches =
+        input.service_date === undefined
+          ? lookup.trains
+          : lookup.trains.filter(
+              (train) => train.serviceDate === input.service_date,
+            );
+      const dataAsOf =
+        latestIso(
+          matches.flatMap((train) => [
+            train.observedAt ?? undefined,
+            train.updatedAt ?? undefined,
+          ]),
+        ) ?? lookup.fetchedAt;
+      const ageSeconds = Math.max(
+        0,
+        Math.floor((now.getTime() - Date.parse(dataAsOf)) / 1_000),
+      );
+      const publicMatches = matches.map(publicRealtimeTrain);
+
+      return {
+        status:
+          matches.length === 0
+            ? "not_found"
+            : matches.length > 1
+              ? "ambiguous"
+              : matches[0]?.trainState.toLocaleLowerCase("en-US") || "found",
+        feed_id: "amtrak",
+        realtime_source_id: "amtrak-amtraker",
+        train_or_trip: identifier,
+        service_date: input.service_date ?? null,
+        matches: publicMatches,
+        count: publicMatches.length,
+        ...(matches.length === 0
+          ? {
+              reason:
+                "No matching active or predeparture Amtrak train is currently published by Amtraker.",
+            }
+          : {}),
+        source: {
+          name: "Amtraker",
+          official: false,
+          attribution: "Realtime data provided by Amtraker.",
+          url: lookup.sourceUrl,
+        },
+        cache_status: lookup.cacheStatus,
+        retrieved_at: lookup.fetchedAt,
+        source_age_seconds: ageSeconds,
+        stale: ageSeconds > 300,
+        data_as_of: dataAsOf,
+      };
+    } catch (error) {
+      console.warn({
+        event: "trip_status_upstream_failed",
+        feed_id: "amtrak",
+        identifier,
+        error: error instanceof Error ? error.name : "unknown",
+      });
+      return {
+        status: "unavailable",
+        tool: "trip_status",
+        feed_id: "amtrak",
+        train_or_trip: identifier,
+        reason:
+          "The unofficial Amtraker realtime source is temporarily unavailable or returned unsupported data.",
+        source: {
+          name: "Amtraker",
+          official: false,
+        },
+        data_as_of: toIso(now),
+      };
+    }
   }
 
   stub(tool: string, reason: string): StubToolResult {

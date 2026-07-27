@@ -6,10 +6,10 @@ Cloudflare.
 
 > [!IMPORTANT]
 > This repository is an early production implementation. The Cloudflare
-> resources, public domains, static GTFS ingestion, and the `list_feeds` and
-> `find_stops` and static `next_departures` MCP paths are live. The remaining
-> realtime tools, monitoring, rate limits, and automated lazy ingestion are
-> not yet complete.
+> resources, public domains, static GTFS ingestion, and the `list_feeds`,
+> `find_stops`, static `next_departures`, and Amtrak `trip_status` MCP paths
+> are live. Standard GTFS-Realtime merging and alerts, transfer analysis,
+> monitoring, rate limits, and automated lazy ingestion are not yet complete.
 
 ## Scope and priorities
 
@@ -17,8 +17,9 @@ Cloudflare.
 Feeds are added incrementally in this order:
 
 1. **Amtrak** — the first priority and the nationwide backbone. Static
-   schedules use Amtrak's official GTFS archive. The community Amtraker API is
-   retained only as an isolated candidate for realtime data.
+   schedules use Amtrak's official GTFS archive. Active and predeparture train
+   status uses the community Amtraker API through an isolated, replaceable,
+   explicitly unofficial adapter.
 2. **New York City and New Jersey** — MTA services, NJ Transit, and carriers
    serving the Port Authority Bus Terminal. The registry includes the MTA
    subway's open, no-key static feed, all eight route-group GTFS-Realtime
@@ -58,9 +59,9 @@ it does not invent a “Port Authority” feed.
 - GitHub Actions entry points for dispatch-driven and safety-net ingestion
 - Secret scanning in the local Git hook and `npm run check`
 
-`list_feeds`, `find_stops`, and static-schedule `next_departures` are
-implemented. Realtime merging, trip status, transfer risk, and service alerts
-remain deliberate, typed placeholders.
+`list_feeds`, `find_stops`, static-schedule `next_departures`, and Amtrak
+`trip_status` are implemented. Standard GTFS-Realtime merging, transfer risk,
+and service alerts remain deliberate, typed placeholders.
 
 ## Production architecture
 
@@ -88,8 +89,9 @@ GitHub Actions ──download/filter──┬──batches/atomic swap──> D1
   lifecycle policy in Cloudflare; that policy is not created by this repo.
 - **GitHub Actions** performs all static GTFS ingestion, including Amtrak's
   official feed. The Worker never downloads and transforms static feeds.
-- **GTFS-Realtime** will be fetched on demand and cached for 20–30 seconds.
-  There will be no polling loops.
+- **Realtime data** is fetched on demand and cached for 20–30 seconds. The
+  implemented Amtraker adapter and future standard GTFS-Realtime adapters use
+  this pattern; there are no polling loops.
 - **Lazy backfill** will dispatch an `ingest` event when a requested feed is
   missing or stale, while serving any safe stale result.
 - A daily safety-net job asks the protected `/admin/ingest-needed` endpoint for
@@ -102,9 +104,10 @@ Public surfaces are `penn.fyi` for the landing page and directory, and
 Cloudflare Access and is intended only for CI and Worker service-token clients.
 
 The implementation includes the bindings, static ETL, admin freshness gate, D1
-stop search, and dated static schedule queries. The optional Amtraker realtime
-adapter, on-demand GTFS-Realtime path, and Worker-to-GitHub lazy dispatch are
-production-design contracts that are not implemented yet.
+stop search, dated static schedule queries, and an on-demand cached Amtraker
+adapter for active Amtrak trains. Standard GTFS-Realtime adapters and
+Worker-to-GitHub lazy dispatch are production-design contracts that are not
+implemented yet.
 
 ## Feed lifecycle
 
@@ -172,7 +175,9 @@ clients holding an older schema. Numeric JSON stop IDs are accepted, although
 strings preserve leading zeroes. A stop may also be qualified as
 `feed_id:stop_id`, such as `bay-area-511-bart:901401`. Inspector behavior
 confirms the protocol surface; it does not prove that live upstream feeds are
-ready.
+ready. To exercise Amtrak realtime, call `trip_status` with `feed: "amtrak"`
+and an active train number such as `43`. Amtraker only retains active and
+predeparture trains, so a completed or future train may return `not_found`.
 
 ## Tests and checks
 
@@ -185,11 +190,12 @@ npm run check
 ```
 
 The committed fixture is synthetic and intentionally tiny. Tests exercise
-deterministic registry, GTFS transformation, `list_feeds`, `find_stops`, and
-static schedule result formatting without network access; the stop-search
-acceptance test reads the committed fixture through an in-memory store. Do not
-replace fixture tests with live agency calls: upstream availability,
-credentials, and schedule changes would make the suite nondeterministic.
+deterministic registry, GTFS transformation, `list_feeds`, `find_stops`,
+static schedule result formatting, and cached Amtraker normalization without
+network access; the stop-search acceptance test reads the committed fixture
+through an in-memory store. Do not replace fixture tests with live agency
+calls: upstream availability, credentials, and schedule changes would make the
+suite nondeterministic.
 
 `npm run check` also performs a Wrangler dry run. It is the closest local
 preflight, but it is not a production deployment test.
@@ -204,9 +210,9 @@ Before describing this service as production-ready, maintainers must:
 - configure Access service-token policies for private artifact access;
 - add narrowly scoped secrets described in [SECURITY.md](./SECURITY.md);
 - run the initial static ingests and validate atomic rollback behavior;
-- implement the optional Amtraker realtime adapter, on-demand GTFS-Realtime
-  cache, and lazy repository dispatch;
-- finish and integration-test the three remaining stubbed transit tools;
+- implement standard GTFS-Realtime parsing and schedule merging plus lazy
+  repository dispatch;
+- finish and integration-test the two remaining stubbed transit tools;
 - verify representative MCP clients against the deployed endpoint;
 - add alerting, dashboards, quotas/rate limits, restore procedures, and an
   incident runbook; and

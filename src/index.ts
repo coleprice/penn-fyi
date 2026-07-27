@@ -4,6 +4,8 @@ import { ingestNeeded, bearerToken, constantTimeTokenEqual } from "./admin";
 import { D1TransitStore } from "./data/d1-transit-store";
 import { FreshnessRepository } from "./freshness";
 import { createTransitMcpServer } from "./mcp";
+import { AmtrakerRealtimeProvider } from "./realtime/amtraker";
+import { RealtimeCache } from "./realtime/cache";
 import { loadFeedRegistry } from "./registry";
 import { TransitToolService } from "./tools/service";
 
@@ -72,11 +74,20 @@ export default {
     }
 
     if (url.pathname === "/mcp") {
+      const clock = { now: () => new Date() };
+      const realtimeTtl = Math.min(
+        30,
+        Math.max(20, positiveNumber(env.GTFS_RT_TTL_SECONDS, 25)),
+      );
       const service = new TransitToolService(
         loadFeedRegistry(),
         new D1TransitStore(env.DB),
         new FreshnessRepository(env.TRANSIT_KV),
-        { now: () => new Date() },
+        clock,
+        new AmtrakerRealtimeProvider(
+          new RealtimeCache(env.TRANSIT_KV, realtimeTtl, clock),
+          (input, init) => fetch(input, init),
+        ),
       );
       const server = createTransitMcpServer(service);
       return createMcpHandler(server, { route: "/mcp" })(request, env, ctx);

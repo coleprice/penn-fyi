@@ -19,6 +19,15 @@ function stopReference(description: string) {
     .describe(description);
 }
 
+function tripIdentifier(description: string) {
+  return z
+    .union([
+      z.string().min(1).max(32),
+      z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    ])
+    .describe(description);
+}
+
 export function createTransitMcpServer(service: TransitToolService): McpServer {
   const server = new McpServer({
     name: "penn-fyi",
@@ -127,19 +136,24 @@ export function createTransitMcpServer(service: TransitToolService): McpServer {
     "trip_status",
     {
       description:
-        "Locate a trip or train and report its delay. Not available in the initial scaffold. Future times will be timezone-aware ISO-8601 values with offsets and every result includes data_as_of.",
+        "Report the current status of an active or predeparture Amtrak train using the unofficial Amtraker source, cached for 20–30 seconds. Returns position and speed when available, current delay, alerts, station-by-station scheduled and reported times, and platform assignments when the source publishes them. Use service_date to disambiguate multiple active instances of a train number. Times are timezone-aware ISO-8601 values with offsets; speed is mph; every result identifies the unofficial source and includes data_as_of.",
       inputSchema: {
-        feed: z.string().min(1),
-        trip_or_train_number: z.string().min(1),
+        feed: z
+          .enum(["amtrak", "amtrak-amtraker"])
+          .describe(
+            "Use amtrak; amtrak-amtraker is accepted as an explicit source alias.",
+          ),
+        trip_or_train_number: tripIdentifier(
+          "Amtrak train number such as 43, or Amtraker train ID such as 43-27.",
+        ),
+        service_date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("Optional train-origin service date in YYYY-MM-DD form."),
       },
     },
-    async () =>
-      result(
-        service.stub(
-          "trip_status",
-          "Realtime trip adapters and vehicle matching are not implemented yet.",
-        ),
-      ),
+    async (input) => result(await service.tripStatus(input)),
   );
 
   server.registerTool(

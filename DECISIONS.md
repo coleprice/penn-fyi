@@ -132,9 +132,9 @@ therefore filters it to Amtrak's `agency_id` `51` before route, trip, stop, and
 service filtering. Raw artifacts remain private and redistribution stays
 default-deny pending a current terms review.
 
-Amtraker remains a separate, unofficial realtime candidate. It may be used
-behind an isolated adapter after implementation and rights review, but it is
-not the source of Amtrak's static schedule data.
+Amtraker remains a separate, unofficial realtime source. D-015 activates it
+behind an isolated adapter, but it is not the source of Amtrak's static
+schedule data.
 
 ## D-012 — Ingest core 511 operators separately
 
@@ -194,3 +194,32 @@ Stop references may be qualified as `feed_id:stop_id`. The service strips a
 recognized registry feed prefix before querying D1 and rejects conflicting
 origin, destination, and explicit feed identifiers. Unrecognized prefixes
 remain part of the GTFS stop ID because colons are valid identifier content.
+
+## D-015 — Use an isolated, bounded Amtraker adapter
+
+- **Date:** 2026-07-27
+- **Status:** accepted
+
+`trip_status` uses Amtraker for active and predeparture Amtrak trains. Amtraker
+is an unofficial community source and remains isolated behind a replaceable
+provider interface; every result identifies the source and includes its
+requested attribution. Official Amtrak GTFS remains the schedule authority.
+
+The tool accepts a train number or Amtraker train ID plus an optional
+origin-service date. It returns current position and speed, status, alerts,
+station-level scheduled and reported times, delays, and platform assignments
+when Amtraker publishes them. Completed and otherwise inactive trains are
+reported as `not_found`, reflecting the upstream retention window rather than
+inventing a historical result.
+
+Normalized results are cached in KV with a configurable logical TTL clamped to
+20–30 seconds. Because Workers KV has a 60-second minimum storage expiration,
+the versioned cache envelope contains its own expiry and uses a longer storage
+TTL only for eventual cleanup. Cache read or write failures do not hide a
+successful upstream result.
+
+Upstream calls have an eight-second timeout and a one-megabyte response limit.
+Both upstream and cached data are schema-validated; raw payloads are not
+archived. Failures produce structured `unavailable` responses, stale source
+timestamps are flagged, and ambiguous train-number matches ask the caller for
+`service_date`.

@@ -10,6 +10,11 @@ import type {
 } from "../src/data/transit-store";
 import type { FreshnessStore } from "../src/freshness";
 import { createTransitMcpServer } from "../src/mcp";
+import type {
+  RealtimeTrainStatus,
+  RealtimeTripLookup,
+  RealtimeTripProvider,
+} from "../src/realtime/types";
 import { TransitToolService } from "../src/tools/service";
 import type {
   FeedFreshness,
@@ -243,10 +248,93 @@ class FakeFreshness {
   }
 }
 
-function service(freshness = new FakeFreshness()): TransitToolService {
-  return new TransitToolService(registry, new FakeStore(), freshness, {
-    now: () => new Date("2026-07-23T15:00:00.000Z"),
-  });
+const realtimeTrain: RealtimeTrainStatus = {
+  trainId: "43-23",
+  trainNumber: "43",
+  routeName: "Pennsylvanian",
+  serviceDate: "2026-07-23",
+  trainState: "Active",
+  origin: {
+    stopId: "NYP",
+    name: "New York Penn",
+    timezone: "America/New_York",
+  },
+  destination: {
+    stopId: "PGH",
+    name: "Pittsburgh",
+    timezone: "America/New_York",
+  },
+  currentEvent: {
+    stopId: "HGD",
+    name: "Huntingdon",
+    timezone: "America/New_York",
+  },
+  latitude: 40.56,
+  longitude: -77.59,
+  heading: "SW",
+  speedMph: 62.3,
+  statusMessage: null,
+  observedAt: "2026-07-23T10:59:10-04:00",
+  updatedAt: "2026-07-23T10:59:47-04:00",
+  stations: [
+    {
+      stopId: "NYP",
+      name: "New York Penn",
+      timezone: "America/New_York",
+      status: "Departed",
+      scheduledArrival: "2026-07-23T08:00:00-04:00",
+      reportedArrival: "2026-07-23T08:00:00-04:00",
+      scheduledDeparture: "2026-07-23T08:00:00-04:00",
+      reportedDeparture: "2026-07-23T08:00:00-04:00",
+      platform: "Track 7",
+    },
+    {
+      stopId: "HGD",
+      name: "Huntingdon",
+      timezone: "America/New_York",
+      status: "Enroute",
+      scheduledArrival: "2026-07-23T10:48:00-04:00",
+      reportedArrival: "2026-07-23T10:59:00-04:00",
+      scheduledDeparture: "2026-07-23T10:50:00-04:00",
+      reportedDeparture: "2026-07-23T11:01:00-04:00",
+      platform: null,
+    },
+  ],
+  alerts: ["Test alert"],
+};
+
+class FakeRealtime implements RealtimeTripProvider {
+  constructor(
+    private readonly result: RealtimeTripLookup = {
+      trains: [realtimeTrain],
+      fetchedAt: "2026-07-23T15:00:00.000Z",
+      cacheStatus: "miss",
+      sourceUrl: "https://api.example.test/v3/trains/43",
+    },
+    private readonly failure: Error | null = null,
+  ) {}
+
+  async lookup(): Promise<RealtimeTripLookup> {
+    if (this.failure !== null) {
+      throw this.failure;
+    }
+    return this.result;
+  }
+}
+
+function service(
+  freshness = new FakeFreshness(),
+  realtime?: RealtimeTripProvider,
+): TransitToolService {
+  return new TransitToolService(
+    registry,
+    new FakeStore(),
+    freshness,
+    {
+      now: () => new Date("2026-07-23T15:00:00.000Z"),
+    },
+    realtime,
+  );
 }
 
 describe("TransitToolService", () => {
@@ -370,7 +458,9 @@ describe("TransitToolService", () => {
   });
 
   it("publishes and executes the compatible MCP stop schema", async () => {
-    const server = createTransitMcpServer(service());
+    const server = createTransitMcpServer(
+      service(new FakeFreshness(), new FakeRealtime()),
+    );
     const client = new Client({
       name: "penn-fyi-test",
       version: "1.0.0",
@@ -412,6 +502,30 @@ describe("TransitToolService", () => {
             from_stop: "901401",
             to_stop: "907101",
           },
+        },
+      });
+
+      const tripTool = tools.tools.find(
+        (candidate) => candidate.name === "trip_status",
+      );
+      expect(
+        tripTool?.inputSchema.properties?.trip_or_train_number,
+      ).toMatchObject({
+        anyOf: [{ type: "string" }, { type: "integer" }],
+      });
+      await expect(
+        client.callTool({
+          name: "trip_status",
+          arguments: {
+            feed: "amtrak",
+            trip_or_train_number: 43,
+            service_date: "2026-07-23",
+          },
+        }),
+      ).resolves.toMatchObject({
+        structuredContent: {
+          status: "active",
+          count: 1,
         },
       });
     } finally {
@@ -456,6 +570,93 @@ describe("TransitToolService", () => {
         before_time: "08:00",
       }),
     ).rejects.toThrow(/before_time/);
+  });
+
+  it("returns attributed realtime Amtrak trip status and platform data", async () => {
+    await expect(
+      service(new FakeFreshness(), new FakeRealtime()).tripStatus({
+        feed: "amtrak",
+        trip_or_train_number: 43,
+        service_date: "2026-07-23",
+      }),
+    ).resolves.toMatchObject({
+      status: "active",
+      feed_id: "amtrak",
+      realtime_source_id: "amtrak-amtraker",
+      train_or_trip: "43",
+      count: 1,
+      matches: [
+        {
+          train_id: "43-23",
+          train_number: "43",
+          delay_minutes: 11,
+          position: {
+            heading: "SW",
+            speed_mph: 62.3,
+          },
+          station_times: [
+            {
+              stop_id: "NYP",
+              platform: "Track 7",
+              departure_delay_minutes: 0,
+            },
+            {
+              stop_id: "HGD",
+              platform: null,
+              departure_delay_minutes: 11,
+            },
+          ],
+        },
+      ],
+      source: {
+        name: "Amtraker",
+        official: false,
+      },
+      cache_status: "miss",
+      stale: false,
+      data_as_of: "2026-07-23T14:59:47.000Z",
+    });
+  });
+
+  it("reports not-found, unsupported, and upstream-unavailable status honestly", async () => {
+    const noMatches = new FakeRealtime({
+      trains: [],
+      fetchedAt: "2026-07-23T15:00:00.000Z",
+      cacheStatus: "hit",
+      sourceUrl: "https://api.example.test/v3/trains/643",
+    });
+
+    await expect(
+      service(new FakeFreshness(), noMatches).tripStatus({
+        feed: "amtrak",
+        trip_or_train_number: "643",
+      }),
+    ).resolves.toMatchObject({
+      status: "not_found",
+      count: 0,
+      data_as_of: "2026-07-23T15:00:00.000Z",
+    });
+    await expect(
+      service(new FakeFreshness(), noMatches).tripStatus({
+        feed: "bay-area",
+        trip_or_train_number: "1",
+      }),
+    ).resolves.toMatchObject({
+      status: "not_available",
+      tool: "trip_status",
+    });
+    await expect(
+      service(
+        new FakeFreshness(),
+        new FakeRealtime(undefined, new Error("upstream")),
+      ).tripStatus({
+        feed: "amtrak",
+        trip_or_train_number: "43",
+      }),
+    ).resolves.toMatchObject({
+      status: "unavailable",
+      source: { official: false },
+    });
   });
 
   it("returns an honest structured result for unavailable tools", () => {

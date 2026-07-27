@@ -22,9 +22,9 @@ region.
 - GTFS-Realtime is fetched on demand and cached for 20–30 seconds.
 - Amtrak static schedules use Amtrak's official GTFS archive and the shared
   GitHub Actions ingestion path, filtered to Amtrak's own agency ID.
-- The community Amtraker API is an isolated, replaceable realtime candidate;
-  it must not be treated as an official source or an operational adapter until
-  implemented and reviewed.
+- The community Amtraker API is an implemented, isolated, replaceable realtime
+  adapter. It must always be identified as unofficial, queried on demand,
+  cached for 20–30 seconds, and kept separate from official static schedules.
 - `penn.fyi` is the public landing/feed directory, `mcp.penn.fyi/mcp` is the MCP
   endpoint, and `gtfs.penn.fyi` is private behind Cloudflare Access by default.
 

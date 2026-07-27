@@ -29,15 +29,15 @@
       "region": "United States",
       "modes": ["intercity_rail"],
       "priority": 1,
-      "status": "planned",
+      "status": "operational",
       "adapter": "amtraker",
-      "source_page": "https://beta.amtraker.com/about",
+      "source_page": "https://api.amtraker.com/docs",
       "license": {
         "status": "review_required",
         "redistributable": false,
-        "notes": "Community adapter and data terms are isolated from the GTFS pipeline; do not archive or republish payloads until reviewed."
+        "notes": "The Amtraker API documentation requests attribution. Query results are cached briefly and attributed; raw payloads are not archived or redistributed."
       },
-      "notes": "Unofficial realtime candidate only. Keep isolated from the official Amtrak static GTFS pipeline and do not report it as operational until the adapter is implemented."
+      "notes": "Unofficial, isolated, on-demand realtime adapter for trip_status. It is not a substitute for Amtrak's official static GTFS."
     },
     {
       "id": "njt-rail",
