@@ -168,6 +168,9 @@ state `realtime_included: false` until realtime merging exists. This keeps
 future-date schedule answers useful without implying live train status.
 Static GTFS `trip_short_name` is retained as `train_number` so Amtrak results
 expose recognizable numbers rather than only internal trip IDs.
+When a trip visits the requested destination stop more than once after the
+origin, the result uses the first later occurrence instead of duplicating the
+departure.
 The conditional-download cache namespace is advanced when a schema change
 requires unchanged upstream feeds to be transformed and published again.
 

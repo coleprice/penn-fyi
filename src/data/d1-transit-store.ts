@@ -178,6 +178,14 @@ export class D1TransitStore implements TransitStore {
           AND destination.trip_id = origin.trip_id
           AND destination.stop_id = ?
           AND destination.stop_sequence > origin.stop_sequence
+          AND destination.stop_sequence = (
+            SELECT MIN(next_destination.stop_sequence)
+            FROM stop_times next_destination
+            WHERE next_destination.feed_id = origin.feed_id
+              AND next_destination.trip_id = origin.trip_id
+              AND next_destination.stop_id = destination.stop_id
+              AND next_destination.stop_sequence > origin.stop_sequence
+          )
          JOIN stops destination_stop
            ON destination_stop.feed_id = destination.feed_id
           AND destination_stop.stop_id = destination.stop_id`
