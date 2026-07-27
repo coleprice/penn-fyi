@@ -474,9 +474,9 @@ export class TransitToolService {
         ...publicFeed(feed),
         availability: feedAvailability(feed, ingestedAt, freshness?.status),
         freshness: {
-          status:
-            freshness?.status ??
-            (ingestedAt ? "available" : onDemand ? "on_demand" : "missing"),
+          status: onDemand
+            ? "on_demand"
+            : (freshness?.status ?? (ingestedAt ? "available" : "missing")),
           checked_at: freshness?.checked_at ?? null,
           last_ingested: ingestedAt ?? null,
           last_modified: freshness?.last_modified ?? null,
@@ -730,7 +730,7 @@ export class TransitToolService {
 
     const now = this.clock.now();
     try {
-      await this.freshness.recordQueries(["amtrak"], toIso(now));
+      await this.freshness.recordQueries(["amtrak-amtraker"], toIso(now));
     } catch (error) {
       console.warn({
         event: "trip_status_freshness_write_failed",

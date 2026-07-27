@@ -573,8 +573,9 @@ describe("TransitToolService", () => {
   });
 
   it("returns attributed realtime Amtrak trip status and platform data", async () => {
+    const freshness = new FakeFreshness();
     await expect(
-      service(new FakeFreshness(), new FakeRealtime()).tripStatus({
+      service(freshness, new FakeRealtime()).tripStatus({
         feed: "amtrak",
         trip_or_train_number: 43,
         service_date: "2026-07-23",
@@ -616,6 +617,9 @@ describe("TransitToolService", () => {
       stale: false,
       data_as_of: "2026-07-23T14:59:47.000Z",
     });
+    expect(freshness.values.get("amtrak-amtraker")?.last_queried).toBe(
+      "2026-07-23T15:00:00.000Z",
+    );
   });
 
   it("reports not-found, unsupported, and upstream-unavailable status honestly", async () => {

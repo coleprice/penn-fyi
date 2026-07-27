@@ -21,6 +21,12 @@ describe("feed registry", () => {
     expect(
       registry.feeds.find((feed) => feed.id === "bay-area-511-bart")?.status,
     ).toBe("operational");
+    expect(
+      registry.feeds.find((feed) => feed.id === "amtrak-amtraker"),
+    ).toMatchObject({
+      adapter: "amtraker",
+      status: "operational",
+    });
   });
 
   it("rejects duplicate IDs and unverified redistribution", () => {
