@@ -136,8 +136,8 @@ jobs:
               --arg etag "$(jq -r '.version.etag // ""' <<<"$item")" \
               --arg last_modified "$(jq -r '.version.lastModified // ""' <<<"$item")" \
               '{feed_id: $feed_id, last_ingested: $last_ingested,
-                etag: ($etag | select(length > 0)),
-                last_modified: ($last_modified | select(length > 0)),
+                etag: (if ($etag | length) > 0 then $etag else null end),
+                last_modified: (if ($last_modified | length) > 0 then $last_modified else null end),
                 last_queried: null, status: "ok"}')"
             npx wrangler kv key put \
               --remote \
